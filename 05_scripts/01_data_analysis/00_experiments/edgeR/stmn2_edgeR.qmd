@@ -1,0 +1,64 @@
+---
+title: "stmn2_edgeR"
+format: html
+editor: visual
+---
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+#| echo: false
+
+# Try using edgeR
+# 
+
+library(edgeR)
+library(dplyr)
+
+# load data
+raw_counts <- read.delim("/Users/Claire/Library/CloudStorage/Box-Box/MSTP Research Rotations/Summer_2024_Might_Ward_Lab/CRISPRi_alg_optimization/00_references_and_code/files_from_others/00_JH/01_data/00_processed_data/00_mageck_counts/counts/all.count.txt", sep = "\t", header = TRUE)
+
+
+# TODO: handle duplicate gene names
+unique_genes_df <- raw_counts %>%
+group_by(Gene) %>%
+  filter(n() == 1) %>%
+  ungroup()
+
+rownames(unique_genes_df) <- as.character(unique_genes_df$Gene)
+# unique_genes_df$Gene<-NULL
+mygroups <- c("Low1","Low1","Low1","High1","High1","High1")
+
+y <- DGEList(counts=unique_genes_df, genes=rownames(unique_genes_df), group = mygroups)
+# Filtering and normalization
+# There is no purpose in analysing genes that are not expressed in either experimental condition, so genes are first filtered on expression levels.
+keep <- filterByExpr(y)
+table(keep)
+y <- y[keep, , keep.lib.sizes=FALSE]
+y <- normLibSizes(y)
+plotMDS(y, col=rep(1:2, each=3))
+# Distances on an MDS plot of a DGEList object correspond to leading log-fold-change qbetween each pair of samples. Leading log-fold-change is the root-mean-square average of the largest log2-fold-changes between each pair of samples. Each pair of samples extracted at each time tend to cluster together, suggesting a batch effect. The hrcc treated samples tend to be below the mock samples for each time, suggesting a treatment effect within each time. The two samples at time 1 are less consistent than at times 2 and 3.
+
+y <- calcNormFactors(y)
+y <- estimateDisp(y)
+et <- exactTest(y)
+
+result_edgeR <- as.data.frame(topTags(et, n=nrow(unique_genes_df)))
+
+table(result_edgeR$FDR < 0.05)
+plot(result_edgeR$logFC, -log10(result_edgeR$FDR), col=ifelse(result_edgeR$FDR<0.05,"red","black"),main="FDR volcano plot",xlab="log2FC",ylab="-log10(FDR)")
+text(result_edgeR$logFC, -log10(result_edgeR$FDR), labels=result_edgeR$sgRNA)
+hist(result_edgeR$PValue, breaks=20, xlab="P-Value", col="royalblue", ylab="Frequency", main="P-value distribution")
+
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
