@@ -6,13 +6,12 @@ editor: visual
 
 ## Running Code
 
-When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+Goal of the notebook is to use edgeR on the STMN2 screen
 
 ```{r}
 #| echo: false
 
 # Try using edgeR
-# 
 
 library(edgeR)
 library(dplyr)
@@ -53,12 +52,3 @@ text(result_edgeR$logFC, -log10(result_edgeR$FDR), labels=result_edgeR$sgRNA)
 hist(result_edgeR$PValue, breaks=20, xlab="P-Value", col="royalblue", ylab="Frequency", main="P-value distribution")
 
 ```
-
-You can add options to executable code like this
-
-```{r}
-#| echo: false
-2 * 2
-```
-
-The `echo: false` option disables the printing of code (only output is displayed).
