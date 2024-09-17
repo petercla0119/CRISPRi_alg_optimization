@@ -1,0 +1,98 @@
+INFO  @ Mon, 05 Dec 2022 14:12:53: Parameters: /opt/conda/envs/mageck-vispr/bin/mageck test --norm-method control --output-prefix results/test/rra-High-Low-STMN2 --count-table results/count/all.count.txt --control-sgrna ../20200513_library_1_2_unbalanced_NegControlList.txt --control-id Low_1,Low_2,Low_3 --treatment-id High_1,High_2,High_3 
+INFO  @ Mon, 05 Dec 2022 14:12:53: Welcome to MAGeCK v0.5.9.5. Command: test 
+INFO  @ Mon, 05 Dec 2022 14:12:53: Loading count table from results/count/all.count.txt  
+INFO  @ Mon, 05 Dec 2022 14:12:53: Processing 1 lines.. 
+DEBUG @ Mon, 05 Dec 2022 14:12:53: Parsing error in line 1 (usually the header line). Skip this line. 
+INFO  @ Mon, 05 Dec 2022 14:12:53: Loaded 21339 records. 
+INFO  @ Mon, 05 Dec 2022 14:12:53: 1026 out of 1027 control sgRNAs are found in count table. 
+INFO  @ Mon, 05 Dec 2022 14:12:53: Loading Rnw template file: /opt/conda/envs/mageck-vispr/lib/python3.9/site-packages/mageck/test_report.Rmd. 
+DEBUG @ Mon, 05 Dec 2022 14:12:53: Setting up the visualization module... 
+INFO  @ Mon, 05 Dec 2022 14:12:53: Loading R template file: /opt/conda/envs/mageck-vispr/lib/python3.9/site-packages/mageck/plot_template.RTemplate. 
+INFO  @ Mon, 05 Dec 2022 14:12:53: Loading R template file: /opt/conda/envs/mageck-vispr/lib/python3.9/site-packages/mageck/plot_template_indvgene.RTemplate. 
+INFO  @ Mon, 05 Dec 2022 14:12:53: Loading Rnw template file: /opt/conda/envs/mageck-vispr/lib/python3.9/site-packages/mageck/plot_template.Rnw. 
+DEBUG @ Mon, 05 Dec 2022 14:12:53: Setting up the visualization module... 
+DEBUG @ Mon, 05 Dec 2022 14:12:53: Given sample labels: High_1,High_2,High_3 
+DEBUG @ Mon, 05 Dec 2022 14:12:53: Converted index: 1 3 5 
+INFO  @ Mon, 05 Dec 2022 14:12:53: Treatment samples:High_1,High_2,High_3 
+INFO  @ Mon, 05 Dec 2022 14:12:53: Treatment sample index:1,3,5 
+DEBUG @ Mon, 05 Dec 2022 14:12:53: Given sample labels: Low_1,Low_2,Low_3 
+DEBUG @ Mon, 05 Dec 2022 14:12:53: Converted index: 0 2 4 
+INFO  @ Mon, 05 Dec 2022 14:12:53: Control samples:Low_1,Low_2,Low_3 
+INFO  @ Mon, 05 Dec 2022 14:12:53: Control sample index:0,2,4 
+INFO  @ Mon, 05 Dec 2022 14:12:53: Loaded 1027 control sgRNAs from ../20200513_library_1_2_unbalanced_NegControlList.txt 
+INFO  @ Mon, 05 Dec 2022 14:12:54: control sgRNAs for normalization:1026 
+DEBUG @ Mon, 05 Dec 2022 14:12:54: Initial (total) size factor: 0.9549468138189809 0.8125819665602063 1.0904282620415295 1.063704835881913 1.17752796526681 0.9844863124171936 
+DEBUG @ Mon, 05 Dec 2022 14:12:54: Median factor: 0.9320534049383743 0.7972088157072208 1.074904280680409 1.0390851014194218 1.1529188458225539 0.9608833845724768 
+INFO  @ Mon, 05 Dec 2022 14:12:54: Final size factor: 0.9320534049383743 0.7972088157072208 1.074904280680409 1.0390851014194218 1.1529188458225539 0.9608833845724768 
+INFO  @ Mon, 05 Dec 2022 14:12:54: Detecting outliers from variance estimation.. Avg read count:[3505.262859298814], Var: [10608052.723937683] 
+INFO  @ Mon, 05 Dec 2022 14:12:54: Skipping 253 sgRNAs from variance calculation because of their extreme high counts (> 4* STD (mean counts) ). 
+DEBUG @ Mon, 05 Dec 2022 14:12:54: Adjusted model: 1.0542176646292027	5.813592650565545 
+INFO  @ Mon, 05 Dec 2022 14:12:54: Before RRA, 449 sgRNAs are removed with zero counts in both group(s). 
+INFO  @ Mon, 05 Dec 2022 14:12:54: Use qnorm to reversely calculate sgRNA scores ... 
+DEBUG @ Mon, 05 Dec 2022 14:12:54: lower test FDR cutoff: 0.29928195308760175 
+DEBUG @ Mon, 05 Dec 2022 14:12:54: higher test FDR cutoff: 0.41019626615605553 
+INFO  @ Mon, 05 Dec 2022 14:12:55: Running command: RRA -i results/test/rra-High-Low-STMN2.plow.txt -o results/test/rra-High-Low-STMN2.gene.low.txt -p 0.29928195308760175 --control ../20200513_library_1_2_unbalanced_NegControlList.txt --skip-gene NA --skip-gene na  
+INFO  @ Mon, 05 Dec 2022 14:12:57: Command message: 
+INFO  @ Mon, 05 Dec 2022 14:12:57:   Welcome to RRA v 0.5.9. 
+INFO  @ Mon, 05 Dec 2022 14:12:57:   1027 control sequences loaded. 
+INFO  @ Mon, 05 Dec 2022 14:12:57:   Skipping gene NA for permutation ... 
+INFO  @ Mon, 05 Dec 2022 14:12:57:   Skipping gene na for permutation ... 
+INFO  @ Mon, 05 Dec 2022 14:12:57:   Reading input file... 
+INFO  @ Mon, 05 Dec 2022 14:12:57:   Summary: 20890 sgRNAs, 18328 genes, 1 lists; skipped sgRNAs:0 
+INFO  @ Mon, 05 Dec 2022 14:12:57:   Computing lo-values for each group... 
+INFO  @ Mon, 05 Dec 2022 14:12:57:   Skipping gene negative_control for permutation ... 
+INFO  @ Mon, 05 Dec 2022 14:12:57:   Warning: sgRNA id not found in the ranked list.  
+INFO  @ Mon, 05 Dec 2022 14:12:57:   Warning: sgRNA non-targeting_00880|non-targeting_01345 not found in the ranked list.  
+INFO  @ Mon, 05 Dec 2022 14:12:57:   Computing false discovery rate... 
+INFO  @ Mon, 05 Dec 2022 14:12:57:   Total # control sgRNAs: 1025 
+INFO  @ Mon, 05 Dec 2022 14:12:57:   Permuting genes with 1 sgRNAs... 
+INFO  @ Mon, 05 Dec 2022 14:12:57:   Permuting genes with 2 sgRNAs... 
+INFO  @ Mon, 05 Dec 2022 14:12:57:   Permuting genes with 3 sgRNAs... 
+INFO  @ Mon, 05 Dec 2022 14:12:57:   Permuting genes with 4 sgRNAs... 
+INFO  @ Mon, 05 Dec 2022 14:12:57:   Permuting genes with 5 sgRNAs... 
+INFO  @ Mon, 05 Dec 2022 14:12:57:   Number of genes under FDR adjustment: 18328 
+INFO  @ Mon, 05 Dec 2022 14:12:57:   Saving to output file... 
+INFO  @ Mon, 05 Dec 2022 14:12:57:   Suppressing the output of gene negative_control since it is negative ontrol genes. 
+INFO  @ Mon, 05 Dec 2022 14:12:57:   RRA completed. 
+INFO  @ Mon, 05 Dec 2022 14:12:57:   Groups deletion complete. 
+INFO  @ Mon, 05 Dec 2022 14:12:57:   Lists deletion complete. 
+INFO  @ Mon, 05 Dec 2022 14:12:57:   ControlSeqPercentile deletion complete. 
+INFO  @ Mon, 05 Dec 2022 14:12:57:    
+INFO  @ Mon, 05 Dec 2022 14:12:57: End command message. 
+INFO  @ Mon, 05 Dec 2022 14:12:57: Running command: RRA -i results/test/rra-High-Low-STMN2.phigh.txt -o results/test/rra-High-Low-STMN2.gene.high.txt -p 0.41019626615605553 --control ../20200513_library_1_2_unbalanced_NegControlList.txt --skip-gene NA --skip-gene na  
+INFO  @ Mon, 05 Dec 2022 14:13:00: Command message: 
+INFO  @ Mon, 05 Dec 2022 14:13:00:   Welcome to RRA v 0.5.9. 
+INFO  @ Mon, 05 Dec 2022 14:13:00:   1027 control sequences loaded. 
+INFO  @ Mon, 05 Dec 2022 14:13:00:   Skipping gene NA for permutation ... 
+INFO  @ Mon, 05 Dec 2022 14:13:00:   Skipping gene na for permutation ... 
+INFO  @ Mon, 05 Dec 2022 14:13:00:   Reading input file... 
+INFO  @ Mon, 05 Dec 2022 14:13:00:   Summary: 20890 sgRNAs, 18328 genes, 1 lists; skipped sgRNAs:0 
+INFO  @ Mon, 05 Dec 2022 14:13:00:   Computing lo-values for each group... 
+INFO  @ Mon, 05 Dec 2022 14:13:00:   Skipping gene negative_control for permutation ... 
+INFO  @ Mon, 05 Dec 2022 14:13:00:   Warning: sgRNA id not found in the ranked list.  
+INFO  @ Mon, 05 Dec 2022 14:13:00:   Warning: sgRNA non-targeting_00880|non-targeting_01345 not found in the ranked list.  
+INFO  @ Mon, 05 Dec 2022 14:13:00:   Computing false discovery rate... 
+INFO  @ Mon, 05 Dec 2022 14:13:00:   Total # control sgRNAs: 1025 
+INFO  @ Mon, 05 Dec 2022 14:13:00:   Permuting genes with 1 sgRNAs... 
+INFO  @ Mon, 05 Dec 2022 14:13:00:   Permuting genes with 2 sgRNAs... 
+INFO  @ Mon, 05 Dec 2022 14:13:00:   Permuting genes with 3 sgRNAs... 
+INFO  @ Mon, 05 Dec 2022 14:13:00:   Permuting genes with 4 sgRNAs... 
+INFO  @ Mon, 05 Dec 2022 14:13:00:   Permuting genes with 5 sgRNAs... 
+INFO  @ Mon, 05 Dec 2022 14:13:00:   Number of genes under FDR adjustment: 18328 
+INFO  @ Mon, 05 Dec 2022 14:13:00:   Saving to output file... 
+INFO  @ Mon, 05 Dec 2022 14:13:00:   Suppressing the output of gene negative_control since it is negative ontrol genes. 
+INFO  @ Mon, 05 Dec 2022 14:13:00:   RRA completed. 
+INFO  @ Mon, 05 Dec 2022 14:13:00:   Groups deletion complete. 
+INFO  @ Mon, 05 Dec 2022 14:13:00:   Lists deletion complete. 
+INFO  @ Mon, 05 Dec 2022 14:13:00:   ControlSeqPercentile deletion complete. 
+INFO  @ Mon, 05 Dec 2022 14:13:00:    
+INFO  @ Mon, 05 Dec 2022 14:13:00: End command message. 
+DEBUG @ Mon, 05 Dec 2022 14:13:00: Sorting the merged items by negative selection... 
+INFO  @ Mon, 05 Dec 2022 14:13:00: Loading top 10 genes from results/test/rra-High-Low-STMN2.gene.low.txt: RANBP1,ZC3H13,FADS2,CCNC,GCN1L1,LARP6,RBL2,KIAA1919,PPP1R37,GAREML 
+DEBUG @ Mon, 05 Dec 2022 14:13:00: Column index:3 
+INFO  @ Mon, 05 Dec 2022 14:13:01: Loading top 10 genes from results/test/rra-High-Low-STMN2.gene.high.txt: MAP2K4,CNOT3,UBE3C,C6orf106,EIF3J,BCCIP,ATF2,CUL2,CNOT2,ZNF784 
+DEBUG @ Mon, 05 Dec 2022 14:13:01: Column index:9 
+INFO  @ Mon, 05 Dec 2022 14:13:01: Running command: rm results/test/rra-High-Low-STMN2.plow.txt 
+INFO  @ Mon, 05 Dec 2022 14:13:01: Running command: rm results/test/rra-High-Low-STMN2.phigh.txt 
+INFO  @ Mon, 05 Dec 2022 14:13:01: Running command: rm results/test/rra-High-Low-STMN2.gene.low.txt 
+INFO  @ Mon, 05 Dec 2022 14:13:01: Running command: rm results/test/rra-High-Low-STMN2.gene.high.txt 

@@ -4,9 +4,47 @@ format: html
 editor: visual
 ---
 
-## Running Code
+Goal of the notebook is to use edgeR on the STMN2 screen. Previous attempts to generate plots from the STMN2 gene file had noise plateaued
 
-Goal of the notebook is to use edgeR on the STMN2 screen
+## Setup
+
+```{r}
+#| echo: false
+
+# Try using edgeR
+
+library(edgeR)
+library(dplyr)
+
+# load data
+raw_counts <- read.delim("/Users/Claire/Library/CloudStorage/Box-Box/MSTP Research Rotations/Summer_2024_Might_Ward_Lab/CRISPRi_alg_optimization/00_references_and_code/files_from_others/00_JH/01_data/00_processed_data/00_mageck_counts/counts/all.count.txt", sep = "\t", header = TRUE)
+
+# Original sgRNA MAGeCK Summary file
+read.delim("/Users/Claire/Library/CloudStorage/Box-Box/Graduate_School/PhD/00_projects/CRISPRi_alg_optimization/02_processed_data/rra-High-Low-STMN2.sgrna_summary")
+
+```
+
+## Read alignment/processing
+
+## Count loading and annotation
+
+## Filtering and normalization
+
+We next filter out sgRNAs and samples with low numbers of reads. Need a CPM greater than 5 in 15 or more samples to keep sgRNAs, and at least 100,000 reads to keep a given sample.
+
+### Data exploration
+
+```{r volcano plot of original sgRNA file, echo=FALSE}
+
+
+
+```
+
+### Design matrix
+
+### Dispersion estimation
+
+### 
 
 ```{r}
 #| echo: false

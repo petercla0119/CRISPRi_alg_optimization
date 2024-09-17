@@ -1,0 +1,3154 @@
+---
+title: "cleaned Emory Neuropath analysis"
+mainfont: SourceSansPro
+date: "`r format(Sys.time(), '%B %e, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 6
+    theme: readable
+    df_print: paged
+  pdf_document: default
+editor_options: 
+  chunk_output_type: console
+---
+# Setup
+```{r setup, echo=FALSE, warning=FALSE, results='hide', include=FALSE}
+options(tinytex.verbose = TRUE)
+rm(list = ls()) # Clear workspace environment
+# Install required packages
+require(knitr)
+require(kableExtra)
+require(stringr)
+require(readxl)
+require(dplyr)
+require(openxlsx)
+require(reshape2)
+require(coin)
+require(data.table)
+require(tableone)
+require(rstatix)
+require(Hmisc)
+require(stargazer)
+require(flextable)
+library(showtext) #loadings packages in
+library(Hmisc)
+library(purrr)
+library(tibble)
+library(tidyr)
+library(naniar)
+library(qvalue)
+library(table1)
+# for figures/plots
+library(ggplot2)
+library(ggpubr)
+library(grid)
+library(gridExtra)
+library(ggthemes)
+library(ggcorrplot)
+library(colorspace)
+
+setwd("~/Desktop/Herskowitz_Emory")
+```
+##### Data Wrangling/Cleaning
+###### Clean raw emory sheets from 2017 and 2019 Boros et al papers  
+```{r wrangle-demographics, echo=FALSE, warning=FALSE, results='hide', include=FALSE}
+EC <- read_excel("EMORY CASES Comprehensive List.xlsx", sheet = "ReorganizeEC")
+PFC <- read_excel("EMORY CASES Comprehensive List.xlsx", sheet = "ReorganizePFC")
+EC = EC[,1:40]
+PFC = PFC[,1:34]
+#### MERGE RAW DATASETS
+merged_demographics2 <- merge(EC, PFC, by.x="CaseNumber", by.y="CaseNumber", all.x = TRUE, all.y = TRUE)
+
+# Create new cols with combined demographic data - for completeness ####
+# vars to match - Cohort, MMSE, APOE, PMI, Braak stage, ABC, CERAD, calculated age onset, duration, age at death, race, sex, frontal_NP, frontal_DP, frontal_NFT, EC_NP, EC_DP, EC_NFT
+  # Cohort
+merged_demographics2 <- merged_demographics2  %>% 
+  mutate(Cohort_Ctrl = coalesce(SPSS_CTL.x, SPSS_CTL.y),
+         Cohort_AD = coalesce(SPSS_AD.x, SPSS_AD.y),
+         Cohort_Asym = coalesce(SPSS_ASYM.x, SPSS_ASYM.y))
+merged_demographics2$Cohort <- ifelse(merged_demographics2$Cohort_Ctrl==1 | merged_demographics2$Cohort_Ctrl == 1, "Ctrl",
+                                      ifelse(merged_demographics2$Cohort_AD == 1 | merged_demographics2$Cohort_AD == 1, "AD",
+                                             ifelse(merged_demographics2$Cohort_Asym == 1 | merged_demographics2$Cohort_Asym == 1, "CAD", "NA")))
+
+# MMSE, APOE, PMI, Braak stage, ABC, CERAD, age onset, duration, age at death
+merged_demographics2 <- merged_demographics2  %>% 
+  mutate(MMSE_EC = coalesce(MMSE.x, SPSS_MMSE.x),
+         MMSE_PFC = coalesce(MMSE.y, SPSS_MMSE.y),
+         MMSE = coalesce(MMSE_EC, MMSE_PFC),
+         APOE_geno = coalesce(APOE.x, APOE.y), # E2/3 = 1, E3/3 = 2, E2/4 = 3, E3/4 = 4, E4/4 = 5
+         APOE = coalesce(SPSS_APOE.x, SPSS_APOE.y), # recoded above - CONFIRM APOE values MATCH APOE_geno values------- TODO:
+         PMI = coalesce(`PMI (hr).x`, `PMI (hr).y`), # SPSS value is the same as raw value (PMI (hr).x = SPSS_PMI, PMI (hr).y = SPSS_PMI (hr))
+         Braak_Stage_EC = coalesce(`Braak Stage.x`, `SPSS_Braak Stage.x`),
+         Braak_Stage_PFC = coalesce(`Braak Stage.y`, `SPSS_Braak Stage.y`),
+         Braak_Stage = coalesce(Braak_Stage_EC, Braak_Stage_PFC),
+         ABC_Score = coalesce(ABC.x, ABC.y), # none = 0, low = 1, intermediate = 2, high = 3
+         ABC = coalesce(SPSS_ABC.x, SPSS_ABC.y),# recoded above - CONFIRM ABC_Score values MATCH ABC values------- TODO:
+         CERAD_Score = coalesce(CERAD.x, CERAD.y), # none = 0, A = 1, B = 2, C = 3
+         CERAD = coalesce(SPSS_CERAD.x, SPSS_CERAD.y), # recoded above - CONFIRM CERAD_Score values MATCH CERAD values------- TODO:
+         AgeOnset = coalesce(CalculatedAgeOnset.x, CalculatedAgeOnset.y),
+         Duration = coalesce(Duration.x, Duration.y), # SPSS duration is the same as Duration.x/y (SPSS_Duration.x = Duration.x, SPSS_Duration.y = Duration.y)
+         AgeDeath = coalesce(`Age at Death.x`, `Age at Death.y`), # SPSS_Age is the same as Age at Death.x/y
+         Race_raw = coalesce(Race.x, Race.y), # Black = 1, Hispanic = 2, White = 3 
+         Race = coalesce(SPSS_Race.x, SPSS_Race.y), # recoded above - CONFIRM Race_raw values MATCH RACE values------- TODO:
+         Sex_raw = coalesce(Sex.x, Sex.y), # Female = 0, Male = 1
+         Sex = coalesce(SPSS_Sex.x, SPSS_Sex.y), # recoded above - CONFIRM Sex_raw values MATCH SEX values------- TODO:
+         Frontal_NP = coalesce(`Frontal NP.x`, `Frontal NP.y`),
+         Frontal_DP = coalesce(`Frontal DP.x`, `Frontal DP.y`),
+         Frontal_NFT = coalesce(`Frontal NFT.x`, `Frontal NFT.y`))
+
+cleaned_merged_demographics2 <- merged_demographics2 %>% 
+  dplyr::select(CaseNumber, Cohort, MMSE, APOE_geno, APOE, PMI, Braak_Stage, ABC_Score, ABC, CERAD_Score, CERAD, AgeOnset, Duration, AgeDeath, Race_raw, Race, Sex_raw, Sex, Frontal_NP, Frontal_DP, Frontal_NFT, EC_NP, EC_DP, EC_NFT)
+```
+###### Clean data from 2023 Walker et al paper  
+```{r clean-Walker-2023 data, echo=FALSE, warning=FALSE, results='hide', include=FALSE}
+# Import data
+PFC_raw <- read_excel("Comprehensive EMORY PFC and EC spine data 05.25.2021 CW.xlsx", sheet = "PFC Spine Data")
+EC_raw <- read_excel("Comprehensive EMORY PFC and EC spine data 05.25.2021 CW.xlsx", sheet = "EC Spine Data")
+EC_df <- EC_raw[!apply(EC_raw, 2, function(x) all(is.na(x)) | all(x==""))] # Remove empty cols
+PFC_df <- PFC_raw[!apply(PFC_raw, 2, function(x) all(is.na(x)) | all(x==""))] # Remove empty cols
+## Add EC/PFC specification to cols
+EC_df <- EC_df %>% 
+  rename_with(.cols = 11:48, ~glue::glue("EC_{.}"))
+PFC_df <- PFC_df %>% 
+  rename_with(.cols = 21:61, ~glue::glue("PFC_{.}"))
+# check that all cases in PFC df are included in the EC df
+PFC_cases <- PFC_df$`Project ID`
+EC_df %>% 
+  dplyr::filter(`Project ID` %in% PFC_cases)  # Should have 33 rows (indicating all cases in EC df are in PFC df)
+# check that all cases in EC df are included in the PFC df
+EC_cases <- EC_df$`Project ID`
+PFC_df %>% 
+  dplyr::filter(`Project ID` %in% EC_cases)# Should have 33 (indicating all cases in PFC df are in EC df)
+#### MERGE RAW DATASETS
+merged_df <- merge(EC_df, PFC_df, by.x="Project ID", by.y="Project ID", all.x = TRUE, all.y = TRUE)
+merged_df=merged_df %>% 
+  dplyr::select(-c(`Case No.x`, `Case No.y`))
+```
+###### Combine data from Boros and Walker papers  
+```{r combine-walker-and-boros-data, echo=FALSE, warning=FALSE, results='hide', include=FALSE}
+# look at demographics from CW data
+names(merged_df[,c(1:9,48:65)])
+CW_merged_df = merged_df %>% 
+  dplyr::select(`Project ID`, Condition.x, Condition.y, MMSE, ApoE, PMI.x, PMI.y, Braak_Stage_recoded.x, Braak_Stage_recoded.y, Braak_Stage, ABC, CERAD, `Age at Onset`, `Age at Death.x`, `Age at Death.y`, Race, Sex.x,Sex.y,`Frontal NP_recoded.x`,`Frontal NP_recoded.y`, `Frontal DP_recoded.x`, `Frontal DP_recoded.y`, `Frontal NFT_recoded.x`, `Frontal NFT_recoded.y`)
+
+cleaned_df2 = read.csv("boros_merged_df.csv")
+
+merged_df_spine_values = merged_df %>% 
+ dplyr::select(c("Project ID", "EC_Total length (um)", "EC_*10", "EC_Backbone Length(µm)",  "EC_Head Diameter(µm)", "EC_Thin spine density", "EC_Stubby spine density", "EC_Mushroom spine density", "EC_Filopodia spine density", "EC_Length of Thin", "EC_Length of stubby", "EC_Length of Mushroom", "EC_Length of Filopodia", "EC_Thin head diameter", "EC_Stubby head diameter", "EC_Mushroom head diameter", "EC_Filopodium head diameter", "EC_Synaptosomal pS199 tau", "EC_Synaptosomal pS396 tau", "EC_Synaptosomal pT231 tau", "EC_Insoluble pS199 tau", "EC_Insoluble pS396 tau", "EC_Insoluble pT231 tau", "PFC_Total length (um)", "PFC_Spine Density per 10um", "PFC_Backbone Length(µm)", "PFC_Head Diameter(µm)", "PFC_Thin spine density", "PFC_Stubby spine density", "PFC_Mushroom spine density", "PFC_Filopodia spine density","PFC_Length of thin", "PFC_Length of stubby", "PFC_Length of mushroom", "PFC_Length of filopodia", "PFC_Head diameter of thin", "PFC_Head diameter of stubby", "PFC_Head diameter of mushroom", "PFC_Head diameter of filopodia")) %>% 
+  dplyr::rename(CaseNumber = "Project ID")
+cleaned_df=full_join(cleaned_df2, merged_df_spine_values)
+# cleaned_df = read.csv("emoryvalues.csv", check.names = F, stringsAsFactors = F)
+# convert_to_fctr_vars <- c('Cohort', 'APOE_geno', 'APOE', 'ABC_Score', 'ABC', 'CERAD_Score', 'CERAD', 'Race_raw', 'Race', 'Sex_raw', 'Sex', 'Frontal_NP', 'Frontal_DP', 'Frontal_NFT', 'EC_NP','EC_DP', 'EC_NFT')
+# cleaned_df[,convert_to_fctr_vars] <- lapply(cleaned_df[,convert_to_fctr_vars] , factor)
+# #remove all spaces in col names
+# cleaned_df2=cleaned_df
+# names(cleaned_df2) <- gsub(" ", ".", names(cleaned_df2))
+
+cleaned_df <- cleaned_df %>% 
+  dplyr::rename(EC.Total.Density10um = `EC_*10`,
+                PFC.Total.Density10um = `PFC_Spine Density per 10um`) %>% 
+  dplyr::mutate(InsolTau = `EC_Insoluble pS199 tau`+`EC_Insoluble pS396 tau`+ `EC_Insoluble pT231 tau`,
+         SynTau = `EC_Synaptosomal pS199 tau`+ `EC_Synaptosomal pS396 tau`+ `EC_Synaptosomal pT231 tau`,
+         Avg.Head.Diameter = rowMeans(dplyr::select(cleaned_df, "EC_Head Diameter(µm)", "PFC_Head Diameter(µm)"), na.rm=TRUE),
+         Avg.Backbone.Length = rowMeans(dplyr::select(cleaned_df,"EC_Backbone Length(µm)", "PFC_Backbone Length(µm)"), na.rm=TRUE), #Backbone length = length of spine (excludes dendrite thickness)
+         Total.Avg.Length = rowMeans(dplyr::select(cleaned_df,"EC_Total length (um)", "PFC_Total length (um)"), na.rm=TRUE), #Length = center of spine head to surface of dendrite
+         EC.Avg.Density = rowMeans(dplyr::select(cleaned_df, matches("^EC_.{3,} spine density")), na.rm = TRUE),
+         PFC.Avg.Density = rowMeans(dplyr::select(cleaned_df, matches("^PFC_Length of*")), na.rm = TRUE),
+         EC.Avg.Length = rowMeans(dplyr::select(cleaned_df, matches("^EC_Length of*")), na.rm = TRUE),
+         PFC.Avg.Length = rowMeans(dplyr::select(cleaned_df, matches("^PFC_Length of*")), na.rm = TRUE),
+         EC.Avg.Diameter = rowMeans(dplyr::select(cleaned_df, matches("^EC_.{3,} head diameter")), na.rm = TRUE),
+         PFC.Avg.Diameter = rowMeans(dplyr::select(cleaned_df, matches("^PFC_Head diameter of*")), na.rm = TRUE)
+         ) %>% 
+  dplyr::rename(EC.Total.Length=`EC_Total length (um)`,
+                EC.Backbone.Length=`EC_Backbone Length(µm)`,
+                EC.Head.Diameter=`EC_Head Diameter(µm)`, 
+                EC.Thin.Density=`EC_Thin spine density`, 
+                EC.Stubby.Density=`EC_Stubby spine density`, 
+                EC.Mushroom.Density=`EC_Mushroom spine density`, 
+                EC.Filopodia.Density=`EC_Filopodia spine density`, 
+                EC.Thin.Length=`EC_Length of Thin`, 
+                EC.Stubby.Length=`EC_Length of stubby`,
+                EC.Mushroom.Length=`EC_Length of Mushroom`, 
+                EC.Filopodia.Length=`EC_Length of Filopodia`, 
+                EC.Thin.Diameter=`EC_Thin head diameter`, 
+                EC.Stubby.Diameter=`EC_Stubby head diameter`, 
+                EC.Mushroom.Diameter=`EC_Mushroom head diameter`, 
+                EC.Filopodia.Diameter=`EC_Filopodium head diameter`,
+                PFC.Total.Length=`PFC_Total length (um)`, 
+                PFC.Backbone.Length=`PFC_Backbone Length(µm)`, 
+                PFC.Head.Diameter=`PFC_Head Diameter(µm)`, 
+                PFC.Thin.Density=`PFC_Thin spine density`, 
+                PFC.Stubby.Density=`PFC_Stubby spine density`,
+                PFC.Mushroom.Density=`PFC_Mushroom spine density`, 
+                PFC.Filopodia.Density=`PFC_Filopodia spine density`, 
+                PFC.Thin.Length=`PFC_Length of thin`, 
+                PFC.Stubby.Length=`PFC_Length of stubby`, 
+                PFC.Mushroom.Length=`PFC_Length of mushroom`, 
+                PFC.Filopodia.Length=`PFC_Length of filopodia`, 
+                PFC.Thin.Diameter=`PFC_Head diameter of thin`, 
+                PFC.Stubby.Diameter=`PFC_Head diameter of stubby`, 
+                PFC.Mushroom.Diameter=`PFC_Head diameter of mushroom`, 
+                PFC.Filopodia.Diameter=`PFC_Head diameter of filopodia`)
+cleaned_df <- cleaned_df %>% 
+  dplyr::mutate(Avg.Total.Density = rowMeans(dplyr::select(cleaned_df, "EC.Total.Density10um", "PFC.Total.Density10um"), na.rm = TRUE)) # cant get this to run with pipe above - dont know why
+cleaned_df$Braak_Stage <- gsub(5.5, 5, cleaned_df$Braak_Stage)
+```
+###### Convert to long format
+```{r convert-to-long, echo=FALSE, warning=FALSE, results='hide'}
+# Variable to call demographic vars
+demoVars = c("CaseNumber", "NPDx", "NPDx2", "Cohort", "MMSE", "APOE_geno", "APOE", "PMI", "Braak_Stage", "ABC", "CERAD", "AgeOnset", "Duration", "AgeDeath", "Race_raw", "Race",  "Sex", "Frontal_NP", "Frontal_DP", "Frontal_NFT", "EC_NP", "EC_DP", "EC_NFT")
+# Variable to call aggregate metrics (groups all spine morphologies)
+agRegionalParameters = c("Avg.Total.Density", "Avg.Head.Diameter", "Avg.Backbone.Length", "Total.Avg.Length")
+# Variable to call spine parameters from EC ONLY
+ECspineParameters <- c("EC.Total.Length", "EC.Total.Density10um", "EC.Backbone.Length", "EC.Head.Diameter",
+  "EC.Thin.Density", "EC.Stubby.Density", "EC.Mushroom.Density", "EC.Filopodia.Density", 
+  "EC.Thin.Length", "EC.Stubby.Length", "EC.Mushroom.Length", "EC.Filopodia.Length", 
+  "EC.Thin.Diameter", "EC.Stubby.Diameter", "EC.Mushroom.Diameter", "EC.Filopodia.Diameter", 
+  "EC.Avg.Density", "EC.Avg.Length", "EC.Avg.Diameter")
+# Variable to call spine parameters from PFC ONLY
+PFCspineParameters <- c("PFC.Total.Length", "PFC.Total.Density10um", "PFC.Backbone.Length", "PFC.Head.Diameter", 
+  "PFC.Thin.Density", "PFC.Stubby.Density", "PFC.Mushroom.Density", "PFC.Filopodia.Density",
+  "PFC.Thin.Length", "PFC.Stubby.Length", "PFC.Mushroom.Length", "PFC.Filopodia.Length",
+  "PFC.Thin.Diameter", "PFC.Stubby.Diameter", "PFC.Mushroom.Diameter", "PFC.Filopodia.Diameter", 
+  "PFC.Avg.Density", "PFC.Avg.Length", "PFC.Avg.Diameter")
+EC_PFC_spineParameters <- c("EC.Total.Length", "EC.Total.Density10um", "EC.Backbone.Length", "EC.Head.Diameter","EC.Thin.Density", "EC.Stubby.Density", "EC.Mushroom.Density", "EC.Filopodia.Density", "EC.Thin.Length", "EC.Stubby.Length", "EC.Mushroom.Length", "EC.Filopodia.Length", 
+  "EC.Thin.Diameter", "EC.Stubby.Diameter", "EC.Mushroom.Diameter", "EC.Filopodia.Diameter", 
+  "EC.Avg.Density", "EC.Avg.Length", "EC.Avg.Diameter", "PFC.Total.Length", "PFC.Total.Density10um", "PFC.Backbone.Length", "PFC.Head.Diameter", 
+  "PFC.Thin.Density", "PFC.Stubby.Density", "PFC.Mushroom.Density", "PFC.Filopodia.Density",
+  "PFC.Thin.Length", "PFC.Stubby.Length", "PFC.Mushroom.Length", "PFC.Filopodia.Length",
+  "PFC.Thin.Diameter", "PFC.Stubby.Diameter", "PFC.Mushroom.Diameter", "PFC.Filopodia.Diameter", 
+  "PFC.Avg.Density", "PFC.Avg.Length", "PFC.Avg.Diameter")
+# Variable to call spine parameters
+spineParameters <- c("Avg.Head.Diameter", "Avg.Backbone.Length", "Total.Avg.Length", "EC.Total.Length", "EC.Total.Density10um", "EC.Backbone.Length", "EC.Head.Diameter",
+  "EC.Thin.Density", "EC.Stubby.Density", "EC.Mushroom.Density", "EC.Filopodia.Density", 
+  "EC.Thin.Length", "EC.Stubby.Length", "EC.Mushroom.Length", "EC.Filopodia.Length", 
+  "EC.Thin.Diameter", "EC.Stubby.Diameter", "EC.Mushroom.Diameter", "EC.Filopodia.Diameter", 
+  "EC.Avg.Density", "EC.Avg.Length", "EC.Avg.Diameter", "PFC.Total.Length", "PFC.Total.Density10um", "PFC.Backbone.Length", "PFC.Head.Diameter", 
+  "PFC.Thin.Density", "PFC.Stubby.Density", "PFC.Mushroom.Density", "PFC.Filopodia.Density",
+  "PFC.Thin.Length", "PFC.Stubby.Length", "PFC.Mushroom.Length", "PFC.Filopodia.Length",
+  "PFC.Thin.Diameter", "PFC.Stubby.Diameter", "PFC.Mushroom.Diameter", "PFC.Filopodia.Diameter", 
+  "PFC.Avg.Density", "PFC.Avg.Length", "PFC.Avg.Diameter")
+# Variable to call molecular tau vars
+molecularTau <- c("EC_Synaptosomal pS199 tau", "EC_Synaptosomal pS396 tau", "EC_Synaptosomal pT231 tau", 
+"EC_Insoluble pS199 tau", "EC_Insoluble pS396 tau", "EC_Insoluble pT231 tau", "InsolTau", "SynTau")
+# Create df with spine parameters by region and morphology
+SpineMorphParam_long <- cleaned_df %>% 
+  dplyr::select(demoVars, EC_PFC_spineParameters) %>% 
+  tidyr::pivot_longer(
+    cols = EC_PFC_spineParameters,
+    names_to = "SpineParameter",
+    values_to = "Measurement") %>% 
+  tidyr::separate_wider_delim(SpineParameter, delim = ".", names = c("Region","SpineMorphology","SpineValue")) %>% 
+  dplyr::mutate(SpineParameter=paste(SpineMorphology,SpineValue, sep="."))
+# Create df with Avg parameters ACROSS regions 
+agRegionalParameters_long <- cleaned_df %>% 
+  dplyr::select(demoVars, agRegionalParameters) %>% 
+  tidyr::pivot_longer(
+    cols = agRegionalParameters,
+    names_to = "RegionalParameter",
+    values_to = "Measurement")
+# Create df with molecular tau 
+molecularTau_long <- cleaned_df %>% 
+  dplyr::select(demoVars, molecularTau) %>% 
+  tidyr::pivot_longer(
+    cols = molecularTau,
+    names_to = 'TauType',
+    values_to = 'molecularTauValues') %>%
+    tidyr::separate(TauType, c('Region', 'molecularTau'), "_") %>% 
+  dplyr::filter(!is.na(molecularTauValues))
+SpineMorphParam_long$SpineMorphology <- as.factor(SpineMorphParam_long$SpineMorphology)
+## Essential for boxplots below
+long_df <- cleaned_df %>%
+  tidyr::pivot_longer(
+    cols = molecularTau,
+    names_to = 'molecularTau',
+    values_to = 'molecularTauValues') %>%
+  tidyr::pivot_longer(
+    cols = EC_PFC_spineParameters,
+    names_to = "SpineParameter",
+    values_to = "Measurement") %>% 
+  tidyr::separate_wider_delim(SpineParameter, delim = ".", names = c("Region","SpineMorphology","SpineValue")) %>% 
+  dplyr::mutate(SpineParameter=paste(SpineMorphology,SpineValue, sep=".")) %>%
+  dplyr::filter(!is.na(Measurement))
+```
+
+# Exploration  
+
+#### Normality - Shapiro  
+```{r shapiro-tests-normality, echo=FALSE, warning=FALSE}
+cleaned_df$MMSE <- as.numeric(cleaned_df$MMSE)
+# numeric values begin at col 25 
+numericVars <- cleaned_df[,c(5, 27:ncol(cleaned_df))]
+# apply(numericVars,2,shapiro.test)
+results <- lapply(numericVars, shapiro.test)
+#subset to just results where p > 0.05
+nonnormal_subset <- results[sapply(results, function(x) x$p < 0.05)]
+nonnormalVars <- names(nonnormal_subset) # create vector of nonnormal col names
+# print(nonnormalVars)
+# convert CERAD and ABC vars to factors
+cleaned_df$ABC_Score=as.factor(cleaned_df$ABC_Score)
+cleaned_df$CERAD_Score=as.factor(cleaned_df$CERAD_Score)
+cleaned_df$APOE_geno=as.factor(cleaned_df$APOE_geno)
+
+```
+
+#### TableOne  
+
+##### Demographic summaries  
+```{r demographic-tableone, echo=FALSE, warning=FALSE}
+# variables to summarize
+summarizeVars <- c("Cohort", "MMSE", "APOE_geno", "PMI", "Braak_Stage", "ABC_Score", "CERAD_Score", "AgeOnset", "Duration", "AgeDeath", "Race", "Sex", "Frontal_NP", "Frontal_DP", "Frontal_NFT", "EC_NP", "EC_DP", "EC_NFT", "EC.Total.Length", "EC.Total.Density10um", "EC.Backbone.Length", "EC.Head.Diameter", "EC.Thin.Density", "EC.Stubby.Density", "EC.Mushroom.Density", "EC.Filopodia.Density", "EC.Thin.Length", "EC.Stubby.Length", "EC.Mushroom.Length", "EC.Filopodia.Length", "EC.Thin.Diameter", "EC.Stubby.Diameter", "EC.Mushroom.Diameter", "EC.Filopodia.Diameter", "PFC.Total.Length", "PFC.Total.Density10um","PFC.Backbone.Length", "PFC.Head.Diameter", "PFC.Thin.Density", "PFC.Stubby.Density", "PFC.Mushroom.Density", "PFC.Filopodia.Density", "PFC.Thin.Length", "PFC.Stubby.Length", "PFC.Mushroom.Length", "PFC.Filopodia.Length", "PFC.Thin.Diameter", "PFC.Stubby.Diameter", "PFC.Mushroom.Diameter", "PFC.Filopodia.Diameter", "InsolTau", "SynTau")
+#select variables on interest
+catVars <- c("Cohort", "APOE_geno", "Braak_Stage", "ABC_Score", "CERAD_Score", "Race", "Sex", "Frontal_NP", "Frontal_DP", "Frontal_NFT", "EC_NP", "EC_DP", "EC_NFT") 
+
+convert_to_fctr_vars <- c("Cohort", "APOE_geno", "Braak_Stage", "ABC_Score", "CERAD_Score", "Race", "Sex", "Frontal_NP", "Frontal_DP", "Frontal_NFT", "EC_NP", "EC_DP", "EC_NFT")
+cleaned_df[,convert_to_fctr_vars] <- lapply(cleaned_df[,convert_to_fctr_vars] , factor)
+# DOESNT RUN ----------------
+# tab <- tableone::CreateTableOne(vars = summarizeVars, strata = "Cohort" , data = cleaned_df)
+# k <- print(tab, nonnormal = nonnormalVars, formatOptions = list(big.mark = ","), quote = TRUE, printToggle=FALSE)
+# # print(k)
+# knitr:: kable(k, booktabs=TRUE, format = "latex")
+
+recoded_df <- cleaned_df %>% 
+  dplyr::rename(Sex_recoded=Sex,
+                Race_recoded=Race,
+                Sex=Sex_raw,
+                Race=Race_raw,
+                'Braak Stage'=Braak_Stage,
+                'Disease Duration'=Duration,
+                'Age at Onset'=AgeOnset,
+                'Age at Death'=AgeDeath,
+                'BA28 NP'=Frontal_NP,
+                'BA28 DP'=Frontal_DP,
+                'BA28 NFT'=Frontal_NFT,
+                'BA46 NP'=EC_NP,
+                'BA46 DP'=EC_DP,
+                'BA46 NFT'=EC_NFT,
+                CERAD_recoded=CERAD,
+                ABC_recoded = ABC,
+                APOE_recoded=APOE,
+                CERAD = CERAD_Score,
+                ABC=ABC_Score,
+                APOE = APOE_geno)
+recoded_df$Cohort <- ifelse(recoded_df$Cohort=="Ctrl" | recoded_df$Cohort =="CAD", "CAD/Control", "AD")
+
+
+demographicTable <- table1(~Sex + Race + `Disease Duration` + `Age at Death` + MMSE + APOE + `Braak Stage` + ABC + CERAD + `BA28 NP` + `BA28 DP` + `BA28 NFT` + `BA46 NP` + `BA46 DP` + `BA46 NFT` | Cohort, data = recoded_df, booktabs=TRUE)
+demographicTable # print table
+
+######## TO DO! RECODE NP/DP/NFT to levels
+######## relevel braak, abc, 
+
+# ..., longtable = TRUE) %>% 
+#   add_header_above(c("","AD"=35,"CAD"=9, "Ctrl"=23, "pvalue", "test")) %>% 
+#   kable_styling(latex_options=c("scale_down", "repeat_header"))
+
+  # attr(tab$ContTable, "pValues") #see p values from tableone output
+    # potential variables of interest:
+    # EC_Spine Density, EC_*10, Thin spine density, mushroom spine density,  EC_Insoluble pS199 tau, EC_Insoluble pS396 tau,EC_Insoluble pT231 tau, PFC spine density, MMSE
+```
+
+#### Spine parameter summaries (density, length, diameter)
+```{r spineparam-tableone, echo=FALSE, warning=FALSE,  eval=FALSE}
+ECspinevars_df <- cleaned_df %>% dplyr::select(ECspineParameters) # create df for EC spine vars
+PFCspinevars_df <- cleaned_df %>% dplyr::select(PFCspineParameters)
+demovars_df <- cleaned_df %>% dplyr::select(demoVars)
+
+summary_df <- cleaned_df %>% 
+  dplyr::select(Cohort, ECspineParameters, PFCspineParameters, matches("(EC|PFC).Avg"), InsolTau, SynTau, Avg.Total.Density, Avg.Head.Diameter, Avg.Backbone.Length, Total.Avg.Length) %>% 
+  dplyr::group_by(Cohort) %>% 
+  dplyr::summarise(across(where(is.numeric),
+                          list(mean = mean,
+                               med = stats::median,
+                               sd =  sd,
+                               med.abs.dev =  stats::mad,
+                               IQR = stats::IQR), na.rm=TRUE))
+
+# Rearrange columns by name
+# 1. convert df to long df; 2. separate by region, variable, and summary stat; 3. arrange by variable2 col; 4.
+summary_df_long <- summary_df %>% 
+  tidyr::pivot_longer(
+    cols = -c("Cohort"),
+    names_to = 'variable',
+    values_to = 'value') %>%
+    tidyr::separate(variable, c('Region', 'variable2','stat'), "_")
+# Global regional stats (e.g. total density, total length) combines all spine morphologies ----------
+# mean regional total spine density by cohort
+# summary_df_long %>% 
+#   dplyr::filter(grepl("EC", Region) | grepl("PFC", Region)) %>% 
+#   dplyr::filter(grepl("SpineDensity10um", variable2) & grepl("mean", stat)) %>% 
+#   dplyr::group_by(Region, Cohort)
+
+# dplyr::arrange(variable2, stat) %>% 
+#   tidyr::pivot_wider(
+#     names_from = c(Region, variable2, stat),
+#     values_from = value
+#   )
+#   dplyr::filter(!is.na(molecularTauValues))
+# # avgs of parameters in PFC
+```
+
+# Correlation matrices  
+
+#### Demographics vs. Spine data  
+```{r demo-vs-spine-cor-mat, warning=FALSE, echo=FALSE, dpi=200, fig.height=8, fig.width=10}
+#---------------- setup for cor map for demographics and path data across cohorts #----------------    
+spinevars_df <- cleaned_df %>% 
+  # dplyr::filter(Cohort=="AD") %>% # uncomment for AD only
+      dplyr::filter(Cohort=="Ctrl" | Cohort =="CAD") %>% 
+  dplyr::select(all_of(ECspineParameters), all_of(PFCspineParameters)) %>%
+  dplyr::select(-contains("Filo") & -contains("Avg")) %>%  # select spine vars
+  dplyr::select(EC.Total.Density10um, PFC.Total.Density10um, EC.Backbone.Length, PFC.Backbone.Length, EC.Total.Length, PFC.Total.Length, PFC.Head.Diameter, EC.Head.Diameter, EC.Thin.Density, PFC.Thin.Density, EC.Mushroom.Density, PFC.Mushroom.Density, EC.Stubby.Density, PFC.Stubby.Density, EC.Thin.Length, PFC.Thin.Length, EC.Mushroom.Length, PFC.Mushroom.Length, EC.Stubby.Length, PFC.Stubby.Length, EC.Thin.Diameter, PFC.Thin.Diameter, EC.Mushroom.Diameter, PFC.Mushroom.Diameter, EC.Stubby.Diameter, PFC.Stubby.Diameter) # order for spine vars to appear in heatmap
+demoVarscoded_df <- cleaned_df %>% 
+    # dplyr::filter(Cohort=="AD") %>% # uncomment for AD only
+    dplyr::filter(Cohort=="Ctrl" | Cohort =="CAD") %>% 
+  dplyr::mutate(
+  allele_risk1 = ifelse(grepl("(E2){1}", APOE_geno), -1,
+                        ifelse(grepl("(E3){1}", APOE_geno), 0,
+                               ifelse(grepl("(E4){1}", APOE_geno), 1, NA))),
+  allele_risk2 = ifelse(grepl("(\\/2){1}", APOE_geno), -1,
+                        ifelse(grepl("(\\/3){1}", APOE_geno), 0, 
+                                     ifelse(grepl("(\\/4)", APOE_geno), 1, NA))),
+  APOE_risk = allele_risk1 + allele_risk2) %>% # add columns to calculate APOE_risk
+dplyr::select(AgeDeath, Sex, Race, PMI, APOE_risk, MMSE, Braak_Stage, CERAD, ABC)
+            # add for neuropath scores ... Frontal_NP, EC_NP, Frontal_DP, EC_DP, Frontal_NFT, EC_NFT
+# Create correlation matrix of EC spine traits against PFC spine traits
+demospine_cors <- rcorr(x=as.matrix(demoVarscoded_df), y=as.matrix(spinevars_df), type="spearman")
+# map rcorr output (matrix) to dataframe
+demospine_cors_df <- map(demospine_cors, ~data.frame(.x))
+#### Order columns for cor map  -------------------------------------
+demo_names <- colnames(demoVarscoded_df)
+spine_names <- colnames(spinevars_df)
+heatmap_roworder <- colnames(rev(demoVarscoded_df))
+heatmap_colorder <- colnames(spinevars_df)
+###################       COR MATRIX/MAP FUNCTIONS       ###################   
+# input is a rcorr output object mapped onto df with r, n, P
+# also does FDR adjustment
+formatted_cors <- function(df){
+  df %>%
+    map(~rownames_to_column(.x, var="measure2")) %>%
+    map(~pivot_longer(.x, -measure2, names_to = "measure1")) %>% 
+    bind_rows(.id = "id") %>%
+    pivot_wider(names_from = id, values_from = value) %>%
+    mutate(sig_p = ifelse(P < 0.05, T, F), p_if_sig = ifelse(P <0.05, P, NA), r_if_sig = ifelse(P <0.05, r, NA)) 
+  }
+#input is output of previous function and names of the var on x and y for your final correlation heatmap
+fix_overcount <- function(df, x1, x2) {
+  subset_bool_vec <- !(((df$measure1 %in% x1)&(df$measure2 %in% x1))|((df$measure1 %in% x2)&(df$measure2 %in% x2)))
+  fix_df <- df[subset_bool_vec,]
+  fix_df <- fix_df[1:((nrow(df))/2),]
+  fix_df <- fix_df[grepl("EC|PFC", fix_df$measure2),]
+  return(fix_df)
+}
+#after fixing overcounting, adjust p-values for FDR, calculate storey's q-value
+cors.adjust.BHq <- function(df){
+  df %>%
+    mutate(P_adj = p.adjust(P, method="BH"), 
+           sig_p_adj = ifelse(P_adj < 0.2, T, F), p_adj_if_sig = ifelse(P_adj < 0.2, P_adj, NA)) %>%
+    mutate(q_val = qvalue(P)$qvalues) %>%
+    mutate(q_val = ifelse(q_val<0.05, paste0(round(q_val, 4), "\n**"), round(q_val, 4)), 
+           p_if_sig = ifelse(q_val<0.05, paste0(round(p_if_sig, 3), "\n**"), round(p_if_sig, 3)))
+}
+#input is adjusted and flattened cors df, draws the heatmap with ggplot, ggthemes, colorspace, showtext
+heatmap.draw <- function(df) {
+  # Specify order for heatmap
+  df$measure1 <- factor(df$measure1, levels=heatmap_roworder)
+  df$measure2 <- factor(df$measure2, levels=heatmap_colorder)
+  # Specify grid lines
+xgrid_positions <- seq(0.5, nlevels(df$measure1), by = 1)
+ygrid_positions <- seq(0.5, nlevels(df$measure2), by = 1)
+  # Create heatmap
+ggplot2::ggplot(data=df, aes(x=measure2, y=measure1, col=r)) + 
+   ggplot2::geom_tile(fill='white') +
+    ggplot2::geom_point(aes(size=abs(r)), shape=15) + 
+    ggplot2::scale_color_gradient2(low=("#D26768"), 
+                          mid="#f0f0f0",
+                          high=darken("#0BD5E9"), 
+                          limit=c(-1,1), 
+                          space="Lab",
+                          name="Spearman  \nCorrelation  ") +
+    ggplot2::coord_fixed() + 
+    ggplot2::labs(title="", subtitle="Only significant p-values (q < 0.2) shown\n\n", 
+                  x=NULL, y=NULL) +
+        ggthemes::theme_fivethirtyeight() + 
+  ggplot2::theme(
+          plot.background = element_rect(fill = "transparent", color = NA),
+          panel.background = element_rect(fill = "transparent", color = 'black'),
+          # axis.line = element_line(),
+          axis.text.x = ggplot2::element_text(angle=45, vjust=1, hjust=1, size=10), 
+          axis.text.y = ggplot2::element_text(vjust=1, hjust=1, size=10), 
+          legend.title = ggplot2::element_text(vjust=1, hjust=0, size=10), 
+          plot.title= element_text(hjust=0, size=15), 
+          plot.subtitle = ggplot2::element_text(hjust=0, size=12),
+          legend.position = "bottom",
+          legend.justification = "right",
+          axis.ticks = ggplot2::element_line(colour = "darkgray",  size = 1)) +
+  ggplot2::geom_text(aes(measure2, measure1, label=ifelse(q_val<0.2, p_if_sig, NA)), color="black", size=3) +
+    ggplot2::scale_x_discrete(expand=c(0,0)) +
+    ggplot2::scale_y_discrete(expand=c(0,0)) +
+    ggplot2::scale_size(range=c(1,11), guide=NULL)
+  # ggplot2::geom_hline(yintercept = ygrid_positions, color = "lightgray") +
+  # ggplot2::geom_vline(xintercept = xgrid_positions, color = "lightgray")
+}
+#----------------       All Groups        #----------------    
+flat_demospine_cors <- formatted_cors(demospine_cors_df)
+flat_demospine_cors_f <- fix_overcount(flat_demospine_cors, spine_names, demo_names)
+flat_demospine_cors_adj <- cors.adjust.BHq(flat_demospine_cors_f)
+heatmap_demospine_cors <- heatmap.draw(flat_demospine_cors_adj)
+(heatmap_demospine_cors)
+```
+
+#### Spine vs Path data  
+```{r spine-vs-path-cor-mat, warning=FALSE, echo=FALSE, dpi=200, fig.align='center', fig.height=8, fig.width=10}
+#---------------- setup for cor map for demographics and path data across cohorts #----------------    
+spinevars_df <- cleaned_df %>% 
+  dplyr::select(all_of(ECspineParameters), all_of(PFCspineParameters)) %>% 
+  dplyr::select(-contains("Filo") & -contains("Avg")) %>%  # select spine vars
+  dplyr::select(EC.Total.Density10um, PFC.Total.Density10um, EC.Backbone.Length, PFC.Backbone.Length, EC.Total.Length, PFC.Total.Length, PFC.Head.Diameter, EC.Head.Diameter, EC.Thin.Density, PFC.Thin.Density, EC.Mushroom.Density, PFC.Mushroom.Density, EC.Stubby.Density, PFC.Stubby.Density, EC.Thin.Length, PFC.Thin.Length, EC.Mushroom.Length, PFC.Mushroom.Length, EC.Stubby.Length, PFC.Stubby.Length, EC.Thin.Diameter, PFC.Thin.Diameter, EC.Mushroom.Diameter, PFC.Mushroom.Diameter, EC.Stubby.Diameter, PFC.Stubby.Diameter) # order for spine vars to appear in heatmap
+pathvars_df <- cleaned_df %>% 
+  # dplyr::mutate(
+  # allele_risk1 = ifelse(grepl("(E2){1}", APOE_geno), -1,
+  #                       ifelse(grepl("(E3){1}", APOE_geno), 0,
+  #                              ifelse(grepl("(E4){1}", APOE_geno), 1, NA))),
+  # allele_risk2 = ifelse(grepl("(\\/2){1}", APOE_geno), -1,
+  #                       ifelse(grepl("(\\/3){1}", APOE_geno), 0, 
+  #                                    ifelse(grepl("(\\/4)", APOE_geno), 1, NA))),
+  # APOE_risk = allele_risk1 + allele_risk2) %>% # add columns to calculate APOE_risk
+  dplyr::select(Frontal_NP, EC_NP, Frontal_DP, EC_DP, Frontal_NFT, EC_NFT) %>% 
+  dplyr::rename(PFC_NP = Frontal_NP, PFC_DP = Frontal_DP, PFC_NFT = Frontal_NFT)
+# Create correlation matrix of EC spine traits against PFC spine traits
+spinepath_cors <- rcorr(x=as.matrix(pathvars_df), y=as.matrix(spinevars_df), type="spearman")
+# map rcorr output (matrix) to dataframe
+spinepath_cors_df <- map(spinepath_cors, ~data.frame(.x))
+#### Order columns for cor map  -------------------------------------
+path_names <- colnames(pathvars_df)
+spine_names <- colnames(spinevars_df)
+heatmap_roworder <- colnames(pathvars_df)
+heatmap_colorder <- colnames(spinevars_df)
+###################       COR MATRIX/MAP FUNCTIONS       ###################   
+# input is a rcorr output object mapped onto df with r, n, P
+# also does FDR adjustment
+formatted_cors <- function(df){
+  df %>%
+    map(~rownames_to_column(.x, var="measure1")) %>%
+    map(~pivot_longer(.x, -measure1, names_to = "measure2")) %>% 
+    bind_rows(.id = "id") %>%
+    pivot_wider(names_from = id, values_from = value) %>%
+    mutate(sig_p = ifelse(P < 0.05, T, F), p_if_sig = ifelse(P <0.05, P, NA), r_if_sig = ifelse(P <0.05, r, NA)) 
+  }
+#input is output of previous function and names of the var on x and y for your final correlation heatmap
+fix_overcount <- function(df, x1, x2) {
+  subset_bool_vec <- !(((df$measure1 %in% x1)&(df$measure2 %in% x1))|((df$measure1 %in% x2)&(df$measure2 %in% x2)))
+  fix_df <- df[subset_bool_vec,]
+  fix_df <- fix_df[1:((nrow(df))/2),]
+  fix_df <- fix_df[grepl("NP|DP|NFT", fix_df$measure1),]
+  return(fix_df)
+}
+#after fixing overcounting, adjust p-values for FDR, calculate storey's q-value
+cors.adjust.BHq <- function(df){
+  df %>%
+    mutate(P_adj = p.adjust(P, method="BH"), 
+           sig_p_adj = ifelse(P_adj < 0.2, T, F), 
+           p_adj_if_sig = ifelse(P_adj < 0.2, P_adj, NA)) %>%
+    mutate(q_val = qvalue(P)$qvalues) %>%
+    mutate(q_val = ifelse(q_val<0.05, paste0(round(q_val, 4), "\n**"), round(q_val, 4)), 
+           p_if_sig = ifelse(q_val<0.05, paste0(round(p_if_sig, 3), "\n**"), round(p_if_sig, 3)))
+}
+#input is adjusted and flattened cors df, draws the heatmap with ggplot, ggthemes, colorspace, showtext
+heatmap.draw <- function(df) {
+  # Specify order for heatmap
+  df$measure1 <- factor(df$measure1, levels=heatmap_roworder)
+  df$measure2 <- factor(df$measure2, levels=heatmap_colorder)
+  # Specify grid lines
+xgrid_positions <- seq(0.5, nlevels(df$measure1), by = 1)
+ygrid_positions <- seq(0.5, nlevels(df$measure2), by = 1)
+  # Create heatmap
+ggplot2::ggplot(data=df, aes(x=measure2, y=measure1, col=r)) + 
+   ggplot2::geom_tile(fill='white') +
+    ggplot2::geom_point(aes(size=abs(r)), shape=15) + 
+    ggplot2::scale_color_gradient2(low=("#D26768"), 
+                          mid="#f0f0f0",
+                          high=darken("#0BD5E9"), 
+                          limit=c(-1,1), 
+                          space="Lab",
+                          name="Spearman  \nCorrelation  ") +
+    ggplot2::coord_fixed() + 
+    ggplot2::labs(title="", subtitle="Only significant p-values (q < 0.2) shown\n\n", 
+                  x=NULL, y=NULL) +
+        ggthemes::theme_fivethirtyeight() + 
+  ggplot2::theme(
+          plot.background = element_rect(fill = "transparent", color = NA),
+          panel.background = element_rect(fill = "transparent", color = 'black'),
+          # axis.line = element_line(),
+          axis.text.x = ggplot2::element_text(angle=45, vjust=1, hjust=1, size=10), 
+          axis.text.y = ggplot2::element_text(vjust=1, hjust=1, size=10), 
+          legend.title = ggplot2::element_text(vjust=1, hjust=0, size=10), 
+          plot.title= element_text(hjust=0, size=15), 
+          plot.subtitle = ggplot2::element_text(hjust=0, size=12),
+          legend.position = "bottom",
+          legend.justification = "right",
+          axis.ticks = ggplot2::element_line(colour = "darkgray",  size = 1)) +
+  ggplot2::geom_text(aes(measure2, measure1, label=ifelse(q_val<0.2, p_if_sig, NA)), color="black", size=3) +
+    ggplot2::scale_x_discrete(expand=c(0,0)) +
+    ggplot2::scale_y_discrete(expand=c(0,0)) +
+    ggplot2::scale_size(range=c(1,11), guide=NULL)
+  # ggplot2::geom_hline(yintercept = ygrid_positions, color = "lightgray") +
+  # ggplot2::geom_vline(xintercept = xgrid_positions, color = "lightgray")
+}
+
+
+#----------------       All Groups        #----------------    
+flat_spinepath_cors <- formatted_cors(spinepath_cors_df)
+flat_spinepath_cors_f <- fix_overcount(flat_spinepath_cors, spine_names, path_names)
+flat_spinepath_cors_adj <- cors.adjust.BHq(flat_spinepath_cors_f)
+heatmap_spinepath_cors <- heatmap.draw(flat_spinepath_cors_adj)
+(heatmap_spinepath_cors)
+```
+
+
+## Sanity Check - Braak/CERAD/ABC with Neuropath  
+```{r sanity-check, echo=FALSE,warning=FALSE, fig.height=4, fig.width=6}
+# Frontal neuropath against cog score
+fnp.cog <- cleaned_df %>%
+  filter(!is.na(Frontal_NP)) %>% 
+  ggplot(aes(x = Frontal_NP, y = MMSE, color = Cohort)) +
+  geom_boxplot() +
+  geom_point(position = "jitter") +
+  theme_bw() + 
+  theme(panel.grid.major = element_line(colour = "#E0E0E0", linewidth = 0.2),
+    panel.grid.minor = element_blank()) +
+  annotate("text",
+           x = 1:length(table(cleaned_df$Frontal_NP)),
+           y = aggregate(MMSE ~ Frontal_NP, cleaned_df, median)[ , 2],
+           label = table(cleaned_df$Frontal_NP),
+           col = "black",
+           vjust = - 1) +
+  ggtitle("Frontal NP by MMSE") +
+  theme(plot.title = element_text(hjust = 0.5))
+fdp.cog <- cleaned_df %>%
+  filter(!is.na(Frontal_DP)) %>% 
+  ggplot(aes(x = Frontal_DP, y = MMSE, color = Cohort)) +
+  geom_boxplot() +
+  geom_point(position = "jitter") +
+  theme_bw() + 
+  theme(panel.grid.major = element_line(colour = "#E0E0E0", linewidth = 0.2),
+    panel.grid.minor = element_blank()) +  annotate("text",
+           x = 1:length(table(cleaned_df$Frontal_DP)),
+           y = aggregate(MMSE ~ Frontal_DP, cleaned_df, median)[ , 2],
+           label = table(cleaned_df$Frontal_DP),
+           col = "black",
+           vjust = - 1) +
+  ggtitle("Frontal DP by MMSE") +
+  theme(plot.title = element_text(hjust = 0.5))
+fnft.cog <- cleaned_df %>%
+  filter(!is.na(Frontal_NFT)) %>% 
+  ggplot(aes(x = Frontal_NFT, y = MMSE, color = Cohort)) +
+  geom_boxplot() +
+  geom_point(position = "jitter") +
+  theme_bw() + 
+  theme(panel.grid.major = element_line(colour = "#E0E0E0", linewidth = 0.2),
+    panel.grid.minor = element_blank()) +  annotate("text",
+           x = 1:length(table(cleaned_df$Frontal_NFT)),
+           y = aggregate(MMSE ~ Frontal_NFT, cleaned_df, median)[ , 2],
+           label = table(cleaned_df$Frontal_NFT),
+           col = "black",
+           vjust = - 1) +
+  ggtitle("Frontal NFT by MMSE") +
+  theme(plot.title = element_text(hjust = 0.5))
+# EC neuropath against cog score
+enp.cog <- cleaned_df %>%
+  filter(!is.na(EC_NP)) %>% 
+  ggplot(aes(x = EC_NP, y = MMSE, color = Cohort)) +
+  geom_boxplot() +
+  geom_point(position = "jitter") +
+  theme_bw() + 
+  theme(panel.grid.major = element_line(colour = "#E0E0E0", linewidth = 0.2),
+    panel.grid.minor = element_blank()) +  annotate("text", # add number of observations per group
+           x = 1:length(table(cleaned_df$EC_NP)),
+           y = aggregate(MMSE ~ EC_NP, cleaned_df, median)[ , 2],
+           label = table(cleaned_df$EC_NP),
+           col = "black",
+           vjust = - 1) +
+  ggtitle("EC NP by MMSE") +
+  theme(plot.title = element_text(hjust = 0.5))
+edp.cog <- cleaned_df %>%
+  filter(!is.na(EC_DP)) %>% 
+  ggplot(aes(x = EC_DP, y = MMSE, color = Cohort)) +
+  geom_boxplot() +
+  geom_point(position = "jitter") +
+  theme_bw() + 
+  theme(panel.grid.major = element_line(colour = "#E0E0E0", linewidth = 0.2),
+    panel.grid.minor = element_blank()) +  annotate("text",
+           x = 1:length(table(cleaned_df$EC_DP)),
+           y = aggregate(MMSE ~ EC_DP, cleaned_df, median)[ , 2],
+           label = table(cleaned_df$EC_DP),
+           col = "black",
+           vjust = - 1) +
+  ggtitle("EC DP by MMSE") +
+  theme(plot.title = element_text(hjust = 0.5))
+enft.cog <- cleaned_df %>%
+  filter(!is.na(EC_NFT)) %>% 
+  ggplot(aes(x = EC_NFT, y = MMSE, color = Cohort)) +
+  geom_boxplot() +
+  geom_point(position = "jitter") +
+  theme_bw() + 
+  theme(panel.grid.major = element_line(colour = "#E0E0E0", linewidth = 0.2),
+    panel.grid.minor = element_blank()) +  annotate("text",
+           x = 1:length(table(cleaned_df$EC_NFT)),
+           y = aggregate(MMSE ~ EC_NFT, cleaned_df, median)[ , 2],
+           label = table(cleaned_df$EC_NFT),
+           col = "black",
+           vjust = - 1) +
+  ggtitle("EC NFT by MMSE") +
+  theme(plot.title = element_text(hjust = 0.5))
+# Function to arrange plots with single legend
+grid_arrange_shared_legend <-
+  function(...,
+           ncol = length(list(...)),
+           nrow = 1,
+           position = c("bottom", "right")) {
+    library(grid)
+    plots <- list(...)
+    position <- match.arg(position)
+    g <-
+      ggplotGrob(plots[[1]] + theme(legend.position = position))$grobs
+    legend <- g[[which(sapply(g, function(x)
+      x$name) == "guide-box")]]
+    lheight <- sum(legend$height)
+    lwidth <- sum(legend$width)
+    gl <- lapply(plots, function(x)
+      x + theme(legend.position = "none"))
+    gl <- c(gl, ncol = ncol, nrow = nrow)
+    
+    combined <- switch(
+      position,
+      "bottom" = arrangeGrob(
+        do.call(arrangeGrob, gl),
+        legend,
+        ncol = 1,
+        heights = unit.c(unit(1, "npc") - lheight, lheight)
+      ),
+      "right" = arrangeGrob(
+        do.call(arrangeGrob, gl),
+        legend,
+        ncol = 2,
+        widths = unit.c(unit(1, "npc") - lwidth, lwidth)
+      )
+    )
+    grid.newpage()
+    grid.draw(combined)
+    # return gtable invisibly
+    invisible(combined)
+  }
+
+arranged.fig <- grid_arrange_shared_legend(fnp.cog, fdp.cog, fnft.cog, enp.cog, edp.cog, enft.cog, nrow = 2, position = "bottom", ncol=3)
+
+ggpubr::annotate_figure(arranged.fig,                
+                        bottom = ggpubr::text_grob("Overall lower MMSE \n associated with more pathology", color = "black",
+                                  hjust = 1.1, x = 0.98, face = "italic", size = 10))
+```
+
+## Correlations
+
+### Pairwise grouped analyses correlation mat by spine parameters (thin density, mushroom length ect.)
+<!-- #### All Cases with subsets- Attempt 1 - inefficent, but works-->
+```{r cor-mat-demographics-vs-spine-parameter, warning=FALSE, echo=FALSE, dpi=200, eval=FALSE}
+# ++++++++++++++++++++++++++++
+# flattenCorrMatrix
+# ++++++++++++++++++++++++++++
+# cormat : matrix of the correlation coefficients
+# pmat : matrix of the correlation p-values
+flattenCorrMatrix <- function(cormat, n, pmat, padj) {
+  ut <- upper.tri(cormat)
+  data.frame(
+    measure1 = rownames(cormat)[row(cormat)[ut]],
+    measure2 = rownames(cormat)[col(cormat)[ut]],
+    r  =(cormat)[ut],
+    n  =(n)[ut],
+    p = pmat[ut],
+    padj = padj[ut]
+
+    )
+}
+
+cor.df=cleaned_df %>% 
+  dplyr::select(-c(NPDx, NPDx2, APOE_geno, CERAD_Score, ABC_Score, Race_raw, Sex_raw, Cohort, CaseNumber))
+df.cor.mat <- Hmisc::rcorr(as.matrix(cor.df), type = "spearman")
+adjdf.cor.mat <- p.adjust(df.cor.mat$P, method = "none")
+
+flat.adjdf.cor.mat <-  flattenCorrMatrix(round(df.cor.mat$r,3), df.cor.mat$n, df.cor.mat$P, adjdf.cor.mat)  # reproduces cor_test from rStatix
+# Order columns
+heatmap_roworder <- colnames(cor.df)
+heatmap_colorder <- colnames(cor.df)
+flat.adjdf.cor.mat$measure1 <- factor(flat.adjdf.cor.mat$measure1, levels=heatmap_roworder)
+flat.adjdf.cor.mat$measure2 <- factor(flat.adjdf.cor.mat$measure2, levels=heatmap_colorder)
+### Show significant R values ####
+flat.adjdf.cor.mat %>%  
+  dplyr::filter(!is.na(r)) %>% 
+  dplyr::mutate(sig_p = ifelse(padj < .05, T, F), p_if_sig = ifelse(padj <.05, padj, NA), r_if_sig = ifelse(padj <.05, r, NA)) %>% 
+ggplot(aes(x=measure2, y=measure1, col=r)) + 
+  geom_tile(col="white", fill="#f0f0f0") +
+  geom_point(aes(size=abs(r)), shape=15) +
+  scale_color_gradient2(low=("#D26768"), high=darken("#0BD5E9"), mid="#f0f0f0", limit=c(-1,1), space="Lab",
+                        name="Spearman  \nCorrelation") +
+  theme(axis.text.x = element_text(angle=45, vjust=1, size=7, hjust=1), axis.text.y = element_text(vjust=1, size=7, hjust=1), 
+        legend.title = element_text(vjust=1, hjust=1, size=7), title= element_text(vjust=1, hjust=1, size=7), plot.subtitle = element_text(size=3),
+        axis.ticks = element_line(colour = "darkgray")) +
+  geom_text(aes(measure2, measure1, label=round(r_if_sig,2)), color="black", size=2, fontface = "bold") +
+  labs(x="", y="") +
+  labs(title="Correlations All Cohorts") 
+### Show significant P values ####
+flat.adjdf.cor.mat %>%  
+  dplyr::filter(!is.na(r)) %>% 
+  dplyr::mutate(sig_p = ifelse(padj < .05, T, F), p_if_sig = ifelse(padj <.05, padj, NA), r_if_sig = ifelse(padj <.05, r, NA)) %>% 
+ggplot(aes(x=measure2, y=measure1, col=r)) + 
+  geom_tile(col="white", fill="#f0f0f0") +
+  geom_point(aes(size=abs(r)), shape=15) +
+  scale_color_gradient2(low=("#D26768"), high=darken("#0BD5E9"), mid="#f0f0f0", limit=c(-1,1), space="Lab",
+                        name="Spearman  \nCorrelation") +
+  theme(axis.text.x = element_text(angle=45, vjust=1, size=7, hjust=1), axis.text.y = element_text(vjust=1, size=7, hjust=1), 
+        legend.title = element_text(vjust=1, hjust=1, size=7), title= element_text(vjust=1, hjust=1, size=7), plot.subtitle = element_text(size=3),
+        axis.ticks = element_line(colour = "darkgray")) +
+  geom_text(aes(measure2, measure1, label=round(p_if_sig,3)), color="black", size=2, fontface = "bold") +
+  labs(x="", y="") +
+  labs(title="Correlations All Cohorts")
+# Only show EC and PC columns ####
+flat.adjdf.cor.mat %>%  
+  dplyr::filter(!is.na(r)) %>% 
+  dplyr::mutate(sig_p = ifelse(padj < .05, T, F), p_if_sig = ifelse(padj <.05, padj, NA), r_if_sig = ifelse(padj <.05, r, NA)) %>% 
+  dplyr::filter(grepl("EC", measure1) & grepl("PFC", measure2)) %>%
+  dplyr::filter(!grepl("Insoluble", measure1) & !grepl("Synaptosomal", measure1) & !grepl("Insoluble", measure2) & !grepl("Synaptosomal", measure2)) %>% 
+ggplot(aes(x=measure2, y=measure1, col=r)) + 
+  geom_tile(col="white", fill="#f0f0f0") +
+  geom_point(aes(size=abs(r)), shape=15) +
+  scale_color_gradient2(low=("#D26768"), high=darken("#0BD5E9"), mid="#f0f0f0", limit=c(-1,1), space="Lab",
+                        name="Spearman  \nCorrelation") +
+  theme(axis.text.x = element_text(angle=45, vjust=1, size=9, hjust=1), axis.text.y = element_text(vjust=1, size=9, hjust=1), 
+        legend.title = element_text(vjust=1, hjust=1, size=7), title= element_text(vjust=1, hjust=1, size=15), plot.subtitle = element_text(size=3),
+        axis.ticks = element_line(colour = "darkgray")) +
+  geom_text(aes(measure2, measure1, label=round(p_if_sig,3)), color="black", fontface = "bold") +
+  labs(x="", y="") +
+  labs(title="Correlations All Cohorts, uncorrected")
+
+# Aging Cases ONLY - exclude AD #--------
+agingcor.df=cleaned_df %>% 
+  dplyr::filter(!Cohort=="AD") %>% 
+  dplyr::select(-c(NPDx, NPDx2, APOE_geno, CERAD_Score, ABC_Score, Race_raw, Sex_raw, Cohort, CaseNumber))
+agingdf.cor.mat <- Hmisc::rcorr(as.matrix(agingcor.df), type = "spearman")
+adjagingdf.cor.mat <- p.adjust(agingdf.cor.mat$P, method = "none")
+
+flat.adjagingdf.cor.mat <-  flattenCorrMatrix(round(agingdf.cor.mat$r,3), agingdf.cor.mat$n, agingdf.cor.mat$P, adjagingdf.cor.mat)
+# Order columns
+heatmap_roworder <- colnames(agingcor.df)
+heatmap_colorder <- colnames(agingcor.df)
+flat.adjagingdf.cor.mat$measure1 <- factor(flat.adjagingdf.cor.mat$measure1, levels=heatmap_roworder)
+flat.adjagingdf.cor.mat$measure2 <- factor(flat.adjagingdf.cor.mat$measure2, levels=heatmap_colorder)
+# Show significant correlation values
+flat.adjagingdf.cor.mat %>%  
+  dplyr::filter(!is.na(r)) %>% 
+  dplyr::mutate(sig_p = ifelse(padj < .05, T, F), p_if_sig = ifelse(padj <.05, padj, NA), r_if_sig = ifelse(padj <.05, r, NA)) %>% 
+    # dplyr::filter(grepl("EC", measure1) & grepl("PFC", measure2)) %>%
+ggplot(aes(x=measure2, y=measure1, col=r)) + 
+  geom_tile(col="white", fill="#f0f0f0") +
+  geom_point(aes(size=abs(r)), shape=15) +
+  scale_color_gradient2(low=("#D26768"), high=darken("#0BD5E9"), mid="#f0f0f0", limit=c(-1,1), space="Lab",
+                        name="Spearman  \nCorrelation") +
+  theme(axis.text.x = element_text(angle=45, vjust=1, size=7, hjust=1), axis.text.y = element_text(vjust=1, size=7, hjust=1), 
+        legend.title = element_text(vjust=1, hjust=1, size=7), title= element_text(vjust=1, hjust=1, size=7), plot.subtitle = element_text(size=3),
+        axis.ticks = element_line(colour = "darkgray")) +
+  geom_text(aes(measure2, measure1, label=round(r_if_sig,2)), color="black", size=2, fontface = "bold") +
+  labs(x="", y="")+
+  labs(title="Correlations CAD+Ctrl") 
+# Show significant P values
+flat.adjagingdf.cor.mat %>%  
+  dplyr::filter(!is.na(r)) %>% 
+  dplyr::mutate(sig_p = ifelse(padj < .05, T, F), p_if_sig = ifelse(padj <.05, padj, NA), r_if_sig = ifelse(padj <.05, r, NA)) %>% 
+ggplot(aes(x=measure2, y=measure1, col=r)) + 
+  geom_tile(col="white", fill="#f0f0f0") +
+  geom_point(aes(size=abs(r)), shape=15) +
+  scale_color_gradient2(low=("#D26768"), high=darken("#0BD5E9"), mid="#f0f0f0", limit=c(-1,1), space="Lab",
+                        name="Spearman  \nCorrelation") +
+  theme(axis.text.x = element_text(angle=45, vjust=1, size=7, hjust=1), axis.text.y = element_text(vjust=1, size=7, hjust=1), 
+        legend.title = element_text(vjust=1, hjust=1, size=7), title= element_text(vjust=1, hjust=1, size=7), plot.subtitle = element_text(size=3),
+        axis.ticks = element_line(colour = "darkgray")) +
+  geom_text(aes(measure2, measure1, label=round(p_if_sig,3)), color="black", size=2, fontface = "bold") +
+  labs(x="", y="")+
+  labs(title="Correlations CAD+Ctrl") 
+# Only show EC and PC columns
+flat.adjagingdf.cor.mat %>%  
+  dplyr::filter(!is.na(r)) %>% 
+  dplyr::mutate(sig_p = ifelse(padj < .05, T, F), p_if_sig = ifelse(padj <.05, padj, NA), r_if_sig = ifelse(padj <.05, r, NA)) %>% 
+  dplyr::filter(grepl("EC", measure1) & grepl("PFC", measure2)) %>%
+    dplyr::filter(!grepl("Insoluble", measure1) & !grepl("Synaptosomal", measure1) & !grepl("Insoluble", measure2) & !grepl("Synaptosomal", measure2)) %>% 
+ggplot(aes(x=measure2, y=measure1, col=r)) + 
+  geom_tile(col="white", fill="#f0f0f0") +
+  geom_point(aes(size=abs(r)), shape=15) +
+  scale_color_gradient2(low=("#D26768"), high=darken("#0BD5E9"), mid="#f0f0f0", limit=c(-1,1), space="Lab",
+                        name="Spearman  \nCorrelation") +
+  theme(axis.text.x = element_text(angle=45, vjust=1, size=9, hjust=1), axis.text.y = element_text(vjust=1, size=9, hjust=1), 
+        legend.title = element_text(vjust=1, hjust=1, size=7), title= element_text(vjust=1, hjust=1, size=15), plot.subtitle = element_text(size=3),
+        axis.ticks = element_line(colour = "darkgray")) +
+  geom_text(aes(measure2, measure1, label=round(p_if_sig,3)), color="black", fontface = "bold") +
+  labs(x="", y="") +
+  labs(title="Correlations in Aging Group (Ctrl & CAD), uncorrected") 
+
+
+# AD Cases ONLY - exclude Ctrl/CAD  #--------
+adcor.df=cleaned_df %>% 
+  dplyr::filter(Cohort=="AD") %>% 
+  dplyr::select(-c(NPDx, NPDx2, APOE_geno, CERAD_Score, ABC_Score, Race_raw, Sex_raw, Cohort, CaseNumber))
+addf.cor.mat <- Hmisc::rcorr(as.matrix(adcor.df), type = "spearman")
+adjaddf.cor.mat <- p.adjust(addf.cor.mat$P, method = "none")
+
+flat.addf.cor.mat <-  flattenCorrMatrix(round(addf.cor.mat$r,3), addf.cor.mat$n, addf.cor.mat$P, adjaddf.cor.mat)
+# Order columns
+heatmap_roworder <- colnames(adcor.df)
+heatmap_colorder <- colnames(adcor.df)
+flat.addf.cor.mat$measure1 <- factor(flat.addf.cor.mat$measure1, levels=heatmap_roworder)
+flat.addf.cor.mat$measure2 <- factor(flat.addf.cor.mat$measure2, levels=heatmap_colorder)
+# Show significant correlation values ####
+flat.addf.cor.mat %>%  
+  dplyr::filter(!is.na(r)) %>% 
+  dplyr::mutate(sig_p = ifelse(padj < .05, T, F), 
+                p_if_sig = ifelse(padj <.05, padj, NA), 
+                r_if_sig = ifelse(padj <.05, r, NA)) %>% 
+    # dplyr::filter(grepl("EC", measure1) & grepl("PFC", measure2)) %>%
+ggplot(aes(x=measure2, y=measure1, col=r)) + 
+  geom_tile(col="white", fill="#f0f0f0") +
+  geom_point(aes(size=abs(r)), shape=15) +
+  scale_color_gradient2(low=("#D26768"), high=darken("#0BD5E9"), mid="#f0f0f0", limit=c(-1,1), space="Lab",
+                        name="Spearman  \nCorrelation") +
+  theme(axis.text.x = element_text(angle=45, vjust=1, size=7, hjust=1), axis.text.y = element_text(vjust=1, size=7, hjust=1), 
+        legend.title = element_text(vjust=1, hjust=1, size=7), title= element_text(vjust=1, hjust=1, size=7), plot.subtitle = element_text(size=3),
+        axis.ticks = element_line(colour = "darkgray")) +
+  geom_text(aes(measure2, measure1, label=round(r_if_sig,2)), color="black", size=2, fontface = "bold") +
+  labs(x="", y="")+
+  labs(title="Correlations AD") 
+# Show significant P values ####
+flat.addf.cor.mat %>%  
+  dplyr::filter(!is.na(r)) %>% 
+  dplyr::mutate(sig_p = ifelse(padj < .05, T, F), p_if_sig = ifelse(padj <.05, padj, NA), r_if_sig = ifelse(padj <.05, r, NA)) %>% 
+ggplot(aes(x=measure2, y=measure1, col=r)) + 
+  geom_tile(col="white", fill="#f0f0f0") +
+  geom_point(aes(size=abs(r)), shape=15) +
+  scale_color_gradient2(low=("#D26768"), high=darken("#0BD5E9"), mid="#f0f0f0", limit=c(-1,1), space="Lab",
+                        name="Spearman  \nCorrelation") +
+  theme(axis.text.x = element_text(angle=45, vjust=1, size=7, hjust=1), axis.text.y = element_text(vjust=1, size=7, hjust=1), 
+        legend.title = element_text(vjust=1, hjust=1, size=7), title= element_text(vjust=1, hjust=1, size=7), plot.subtitle = element_text(size=3),
+        axis.ticks = element_line(colour = "darkgray")) +
+  geom_text(aes(measure2, measure1, label=round(p_if_sig,3)), color="black", size=2, fontface = "bold") +
+  labs(x="", y="")+
+  labs(title="Correlations AD") 
+# Only show EC and PC columns ####
+flat.addf.cor.mat %>%  
+  dplyr::filter(!is.na(r)) %>% 
+  dplyr::mutate(sig_p = ifelse(padj < .05, T, F), p_if_sig = ifelse(padj <.05, padj, NA), r_if_sig = ifelse(padj <.05, r, NA)) %>% 
+  dplyr::filter(grepl("EC", measure1) & grepl("PFC", measure2)) %>%
+      dplyr::filter(!grepl("Insoluble", measure1) & !grepl("Synaptosomal", measure1) & !grepl("Insoluble", measure2) & !grepl("Synaptosomal", measure2)) %>% 
+ggplot(aes(x=measure2, y=measure1, col=r)) + 
+  geom_tile(col="white", fill="#f0f0f0") +
+  geom_point(aes(size=abs(r)), shape=15) +
+  scale_color_gradient2(low=("#D26768"), high=darken("#0BD5E9"), mid="#f0f0f0", limit=c(-1,1), space="Lab",
+                        name="Spearman  \nCorrelation") +
+  theme(axis.text.x = element_text(angle=45, vjust=1, size=9, hjust=1), axis.text.y = element_text(vjust=1, size=9, hjust=1), 
+        legend.title = element_text(vjust=1, hjust=1, size=7), title= element_text(vjust=1, hjust=1, size=15), plot.subtitle = element_text(size=3),
+        axis.ticks = element_line(colour = "darkgray")) +
+  geom_text(aes(measure2, measure1, label=round(p_if_sig,3)), color="black", fontface = "bold") +
+  labs(x="", y="") +
+  labs(title="Correlations AD, uncorrected") 
+
+# demoSpineDiameter_cor2 <- Hmisc::rcorr(as.matrix(demoSpineDiameter_cor_df), type = "spearman")
+# y=corrplot(demoSpineDiameter_cor2$r, method = "number")
+# demoSpineDiameter_cor_pair=cor(demoSpineDiameter_cor_df, use = "pairwise.complete.obs", method = "spearman")
+# demoSpineDiameter_cor_pair=ggcorrplot(demoSpineDiameter_cor_pair, lab=T, type = "lower",p.mat = demoSpineDiameter_cor_pair) 
+# demoSpineDiameter_cor_pair
+# x
+# y
+# head(cbind(demoSpineDiameter_cor2$r[,1:5],demoSpineDiameter_cor2$P[,1:5]))
+# head(cbind(x$data$coef[1:5],x$data$pvalue[1:5]))
+# head(cbind(demoSpineDiameter_cor_pair$data$coef[1:5],demoSpineDiameter_cor_pair$data$pvalue[1:5]))
+```
+
+<!-- # Try Evans Pipeline -->
+```{r evans-pipeline, warning=FALSE, echo=FALSE, dpi=200, eval=FALSE}
+#---------------- setup for cor map of all cohorts #----------------    
+ECspinevars_df <- cleaned_df %>% dplyr::select(all_of(ECspineParameters))  # create df for EC spine vars
+PFCspinevars_df <- cleaned_df %>% dplyr::select(all_of(PFCspineParameters))
+ec_pfc_df=cleaned_df[, c(names(ECspinevars_df), names(PFCspinevars_df))]
+# Create correlation matrix of EC spine traits against PFC spine traits
+pfc_ec_cors <- rcorr(as.matrix(ECspinevars_df), as.matrix(PFCspinevars_df), type="spearman")
+# map rcorr output (matrix) to dataframe
+pfc_ec_cors_df <- map(pfc_ec_cors, ~data.frame(.x))
+#----------------  setup for cor map of AD ONLY #----------------    
+AD_ECspinevars_df <- cleaned_df %>% dplyr::filter(Cohort=="AD") %>% dplyr::select(all_of(ECspineParameters))  # create df for EC spine vars
+AD_PFCspinevars_df <- cleaned_df %>% dplyr::filter(Cohort=="AD") %>% dplyr::select(all_of(PFCspineParameters))
+AD_ec_pfc_df=cleaned_df[, c(names(AD_ECspinevars_df), names(AD_PFCspinevars_df))]
+# Create correlation matrix of EC spine traits against PFC spine traits
+AD_pfc_ec_cors <- rcorr(as.matrix(AD_ECspinevars_df), as.matrix(AD_PFCspinevars_df), type="spearman")
+# map rcorr output (matrix) to dataframe
+AD_pfc_ec_cors_df <- map(AD_pfc_ec_cors, ~data.frame(.x))
+#---------------- setup for cor map of AGING ONLY (Ctrl/CAD) #----------------    
+aging_ECspinevars_df <- cleaned_df %>% dplyr::filter(Cohort=="Ctrl" | Cohort =="CAD") %>% dplyr::select(all_of(ECspineParameters))  # create df for EC spine vars
+aging_PFCspinevars_df <- cleaned_df %>% dplyr::filter(Cohort=="Ctrl" | Cohort =="CAD") %>% dplyr::select(all_of(PFCspineParameters))
+aging_ec_pfc_df=cleaned_df[, c(names(aging_ECspinevars_df), names(aging_PFCspinevars_df))]
+# Create correlation matrix of EC spine traits against PFC spine traits
+aging_pfc_ec_cors <- rcorr(as.matrix(aging_ECspinevars_df), as.matrix(aging_PFCspinevars_df), type="spearman")
+# map rcorr output (matrix) to dataframe
+aging_pfc_ec_cors_df <- map(aging_pfc_ec_cors, ~data.frame(.x))
+
+#### Order columns for cor map #########
+pfc_names <- colnames(aging_ECspinevars_df)
+ec_names <- colnames(aging_PFCspinevars_df)
+
+heatmap_roworder <- colnames(aging_ECspinevars_df)
+heatmap_colorder <- colnames(aging_PFCspinevars_df)
+
+###################       COR MATRIX/MAP FUNCTIONS       ###################   
+# input is a rcorr output object mapped onto df with r, n, P
+# also does FDR adjustment
+formatted_cors <- function(df){
+  df %>%
+    map(~rownames_to_column(.x, var="measure1")) %>%
+    map(~pivot_longer(.x, -measure1, names_to = "measure2")) %>% 
+    bind_rows(.id = "id") %>%
+    pivot_wider(names_from = id, values_from = value) %>%
+    mutate(sig_p = ifelse(P < .05, T, F), p_if_sig = ifelse(P <.05, P, NA), r_if_sig = ifelse(P <.05, r, NA)) 
+  }
+#input is output of previous function and names of the var on x and y for your final correlation heatmap
+fix_overcount <- function(df, x1, x2) {
+  subset_bool_vec <- !(((df$measure1 %in% x1)&(df$measure2 %in% x1))|((df$measure1 %in% x2)&(df$measure2 %in% x2)))
+  fix_df <- df[subset_bool_vec,]
+  fix_df <- fix_df[1:((nrow(df))/2),]
+  fix_df <- fix_df[grepl("EC", fix_df$measure1),]
+  return(fix_df)
+}
+#after fixing overcounting, adjust p-values for FDR, calculate storey's q-value
+cors.adjust.BHq <- function(df){
+  df %>%
+    mutate(P_adj = p.adjust(P, method="BH"), 
+           sig_p_adj = ifelse(P_adj < 0.2, T, F), p_adj_if_sig = ifelse(P_adj < 0.2, P_adj, NA)) %>%
+    mutate(q_val = qvalue(P)$qvalues) %>%
+    mutate(q_val = ifelse(q_val<0.05, paste0(round(q_val, 4), "\n**"), round(q_val, 4)), 
+           p_if_sig = ifelse(q_val<0.05, paste0(round(p_if_sig, 3), "\n**"), round(p_if_sig, 3)))
+}
+#input is adjusted and flattened cors df, draws the heatmap with ggplot, ggthemes, colorspace, showtext
+heatmap.draw <- function(df) {
+  # Specify order for heatmap
+  df$measure1 <- factor(df$measure1, levels=heatmap_roworder)
+  df$measure2 <- factor(df$measure2, levels=heatmap_colorder)
+  # Specify grid lines
+xgrid_positions <- seq(0.5, nlevels(df$measure1), by = 1)
+ygrid_positions <- seq(0.5, nlevels(df$measure2), by = 1)
+  # Create heatmap
+ggplot2::ggplot(data=df, aes(x=measure2, y=measure1, col=r)) + 
+   ggplot2::geom_tile(fill='white') +
+    ggplot2::geom_point(aes(size=abs(r)), shape=15) + 
+    ggplot2::scale_color_gradient2(low=("#D26768"), 
+                          mid="#f0f0f0",
+                          high=darken("#0BD5E9"), 
+                          limit=c(-1,1), 
+                          space="Lab",
+                          name="Spearman  \nCorrelation  ") +
+    ggplot2::coord_fixed() + 
+    ggplot2::labs(title="", subtitle="Only significant p-values (q < 0.2) shown\n\n", 
+                  x=NULL, y=NULL) +
+        ggthemes::theme_fivethirtyeight() + 
+  ggplot2::theme(
+          plot.background = element_rect(fill = "transparent", color = NA),
+          panel.background = element_rect(fill = "transparent", color = 'black'),
+          # axis.line = element_line(),
+          axis.text.x = ggplot2::element_text(angle=45, vjust=1, hjust=1, size=10), 
+          axis.text.y = ggplot2::element_text(vjust=1, hjust=1, size=10), 
+          legend.title = ggplot2::element_text(vjust=1, hjust=0, size=10), 
+          plot.title= element_text(hjust=0, size=15), 
+          plot.subtitle = ggplot2::element_text(hjust=0, size=12),
+          legend.position = "bottom",
+          legend.justification = "right",
+          axis.ticks = ggplot2::element_line(colour = "darkgray",  size = 1)) +
+  ggplot2::geom_text(aes(measure2, measure1, label=ifelse(q_val<0.2, p_if_sig, NA)), color="black", size=3) +
+    ggplot2::scale_x_discrete(expand=c(0,0)) +
+    ggplot2::scale_y_discrete(expand=c(0,0)) +
+    ggplot2::scale_size(range=c(1,11), guide=NULL)
+  # ggplot2::geom_hline(yintercept = ygrid_positions, color = "lightgray") +
+  # ggplot2::geom_vline(xintercept = xgrid_positions, color = "lightgray")
+}
+
+
+flat_pfc_ec_cors <- formatted_cors(pfc_ec_cors_df)
+flat_pfc_ec_cors_f <- fix_overcount(flat_pfc_ec_cors, pfc_names, ec_names)
+flat_pfc_ec_cors_adj <- cors.adjust.BHq(flat_pfc_ec_cors_f)
+heatmap_pfc_ec <- heatmap.draw(flat_pfc_ec_cors_adj)
+(heatmap_pfc_ec)
+
+AD_flat_pfc_ec_cors <- formatted_cors(AD_pfc_ec_cors_df)
+AD_flat_pfc_ec_cors_f <- fix_overcount(AD_flat_pfc_ec_cors, pfc_names, ec_names)
+AD_flat_pfc_ec_cors_adj <- cors.adjust.BHq(AD_flat_pfc_ec_cors_f)
+AD_heatmap_pfc_ec <- heatmap.draw(AD_flat_pfc_ec_cors_adj)
+(AD_heatmap_pfc_ec)
+
+aging_flat_pfc_ec_cors <- formatted_cors(aging_pfc_ec_cors_df)
+aging_flat_pfc_ec_cors_f <- fix_overcount(aging_flat_pfc_ec_cors, pfc_names, ec_names)
+aging_flat_pfc_ec_cors_adj <- cors.adjust.BHq(aging_flat_pfc_ec_cors_f)
+aging_heatmap_pfc_ec <- heatmap.draw(aging_flat_pfc_ec_cors_adj)
+(aging_heatmap_pfc_ec)
+
+#---------------- Create table output of significant correlations #----------------    
+flat_pfc_ec_cors_adj$comparison <- as.factor("all")
+AD_flat_pfc_ec_cors_adj$comparison <- as.factor("ad")
+aging_flat_pfc_ec_cors_adj$comparison <- as.factor("aging")
+
+flat_pfc_ec_cors_adj$q_val=as.numeric(flat_pfc_ec_cors_adj$q_val)
+AD_flat_pfc_ec_cors_adj$q_val=as.numeric(AD_flat_pfc_ec_cors_adj$q_val)
+aging_flat_pfc_ec_cors_adj$q_val=as.numeric(aging_flat_pfc_ec_cors_adj$q_val)
+
+cor_mat_comb <- rbind(flat_pfc_ec_cors_adj, AD_flat_pfc_ec_cors_adj, aging_flat_pfc_ec_cors_adj)
+
+###################################################################################
+############                EXCLUDE AVERAGE VARIABLES          ####################
+# created in earlier chunk; calculated avg across 4 spine morphologies of interest
+###################################################################################
+#----------------         setup for cor map of all cohorts        #----------------    
+ECspinevars_df <- cleaned_df %>% dplyr::select(all_of(ECspineParameters)) %>% dplyr::select(-contains("Avg")) # create df for EC spine vars
+PFCspinevars_df <- cleaned_df %>% dplyr::select(all_of(PFCspineParameters)) %>% dplyr::select(-contains("Avg"))
+ec_pfc_df=cleaned_df[, c(names(ECspinevars_df), names(PFCspinevars_df))]
+# Create correlation matrix of EC spine traits against PFC spine traits
+pfc_ec_cors <- rcorr(as.matrix(ECspinevars_df), as.matrix(PFCspinevars_df), type="spearman")
+# map rcorr output (matrix) to dataframe
+pfc_ec_cors_df <- map(pfc_ec_cors, ~data.frame(.x))
+#----------------         setup for cor map of AD ONLY        #----------------    
+AD_ECspinevars_df <- cleaned_df %>% dplyr::filter(Cohort=="AD") %>% dplyr::select(all_of(ECspineParameters)) %>% dplyr::select(-contains("Avg")) # create df for EC spine vars
+AD_PFCspinevars_df <- cleaned_df %>% dplyr::filter(Cohort=="AD") %>% dplyr::select(all_of(PFCspineParameters)) %>% dplyr::select(-contains("Avg"))
+AD_ec_pfc_df=cleaned_df[, c(names(AD_ECspinevars_df), names(AD_PFCspinevars_df))]
+# Create correlation matrix of EC spine traits against PFC spine traits
+AD_pfc_ec_cors <- rcorr(as.matrix(AD_ECspinevars_df), as.matrix(AD_PFCspinevars_df), type="spearman")
+# map rcorr output (matrix) to dataframe
+AD_pfc_ec_cors_df <- map(AD_pfc_ec_cors, ~data.frame(.x))
+#----------------         setup for cor map of AGING ONLY (Ctrl/CAD)        #----------------    
+aging_ECspinevars_df <- cleaned_df %>% dplyr::filter(Cohort=="Ctrl" | Cohort =="CAD") %>% dplyr::select(all_of(ECspineParameters))  %>% dplyr::select(-contains("Avg")) # create df for EC spine vars
+aging_PFCspinevars_df <- cleaned_df %>% dplyr::filter(Cohort=="Ctrl" | Cohort =="CAD") %>% dplyr::select(all_of(PFCspineParameters)) %>% dplyr::select(-contains("Avg"))
+aging_ec_pfc_df=cleaned_df[, c(names(aging_ECspinevars_df), names(aging_PFCspinevars_df))]
+# Create correlation matrix of EC spine traits against PFC spine traits
+aging_pfc_ec_cors <- rcorr(as.matrix(aging_ECspinevars_df), as.matrix(aging_PFCspinevars_df), type="spearman")
+# map rcorr output (matrix) to dataframe
+aging_pfc_ec_cors_df <- map(aging_pfc_ec_cors, ~data.frame(.x))
+
+#### Order columns for cor map -------------------------------------
+pfc_names <- colnames(aging_ECspinevars_df)
+ec_names <- colnames(aging_PFCspinevars_df)
+
+heatmap_roworder <- colnames(aging_ECspinevars_df)
+heatmap_colorder <- colnames(aging_PFCspinevars_df)
+
+###################       COR MATRIX/MAP FUNCTIONS       ###################   
+# input is a rcorr output object mapped onto df with r, n, P
+# also does FDR adjustment
+formatted_cors <- function(df){
+  df %>%
+    map(~rownames_to_column(.x, var="measure1")) %>%
+    map(~pivot_longer(.x, -measure1, names_to = "measure2")) %>% 
+    bind_rows(.id = "id") %>%
+    pivot_wider(names_from = id, values_from = value) %>%
+    mutate(sig_p = ifelse(P < .05, T, F), p_if_sig = ifelse(P <.05, P, NA), r_if_sig = ifelse(P <.05, r, NA)) 
+  }
+#input is output of previous function and names of the var on x and y for your final correlation heatmap
+fix_overcount <- function(df, x1, x2) {
+  subset_bool_vec <- !(((df$measure1 %in% x1)&(df$measure2 %in% x1))|((df$measure1 %in% x2)&(df$measure2 %in% x2)))
+  fix_df <- df[subset_bool_vec,]
+  fix_df <- fix_df[1:((nrow(df))/2),]
+  fix_df <- fix_df[grepl("EC", fix_df$measure1),]
+  return(fix_df)
+}
+#after fixing overcounting, adjust p-values for FDR, calculate storey's q-value
+cors.adjust.BHq <- function(df){
+  df %>%
+    mutate(P_adj = p.adjust(P, method="BH"), 
+           sig_p_adj = ifelse(P_adj < 0.2, T, F), p_adj_if_sig = ifelse(P_adj < 0.2, P_adj, NA)) %>%
+    mutate(q_val = qvalue(P)$qvalues) %>%
+    mutate(q_val = ifelse(q_val<0.05, paste0(round(q_val, 4), "\n**"), round(q_val, 4)), 
+           p_if_sig = ifelse(q_val<0.05, paste0(round(p_if_sig, 3), "\n**"), round(p_if_sig, 3)))
+}
+#input is adjusted and flattened cors df, draws the heatmap with ggplot, ggthemes, colorspace, showtext
+heatmap.draw <- function(df) {
+  # Specify order for heatmap
+  df$measure1 <- factor(df$measure1, levels=heatmap_roworder)
+  df$measure2 <- factor(df$measure2, levels=heatmap_colorder)
+  # Specify grid lines
+xgrid_positions <- seq(0.5, nlevels(df$measure1), by = 1)
+ygrid_positions <- seq(0.5, nlevels(df$measure2), by = 1)
+  # Create heatmap
+ggplot2::ggplot(data=df, aes(x=measure2, y=measure1, col=r)) + 
+   ggplot2::geom_tile(fill='white') +
+    ggplot2::geom_point(aes(size=abs(r)), shape=15) + 
+    ggplot2::scale_color_gradient2(low=("#D26768"), 
+                          mid="#f0f0f0",
+                          high=darken("#0BD5E9"), 
+                          limit=c(-1,1), 
+                          space="Lab",
+                          name="Spearman  \nCorrelation  ") +
+    ggplot2::coord_fixed() + 
+    ggplot2::labs(title="", subtitle="Only significant p-values (q < 0.2) shown\n\n", 
+                  x=NULL, y=NULL) +
+        ggthemes::theme_fivethirtyeight() + 
+  ggplot2::theme(
+          plot.background = element_rect(fill = "transparent", color = NA),
+          panel.background = element_rect(fill = "transparent", color = 'black'),
+          # axis.line = element_line(),
+          axis.text.x = ggplot2::element_text(angle=45, vjust=1, hjust=1, size=10), 
+          axis.text.y = ggplot2::element_text(vjust=1, hjust=1, size=10), 
+          legend.title = ggplot2::element_text(vjust=1, hjust=0, size=10), 
+          plot.title= element_text(hjust=0, size=15), 
+          plot.subtitle = ggplot2::element_text(hjust=0, size=12),
+          legend.position = "bottom",
+          legend.justification = "right",
+          axis.ticks = ggplot2::element_line(colour = "darkgray",  size = 1)) +
+  ggplot2::geom_text(aes(measure2, measure1, label=ifelse(q_val<0.2, p_if_sig, NA)), color="black", size=3) +
+    ggplot2::scale_x_discrete(expand=c(0,0)) +
+    ggplot2::scale_y_discrete(expand=c(0,0)) +
+    ggplot2::scale_size(range=c(1,11), guide=NULL)
+  # ggplot2::geom_hline(yintercept = ygrid_positions, color = "lightgray") +
+  # ggplot2::geom_vline(xintercept = xgrid_positions, color = "lightgray")
+}
+
+noavg_flat_pfc_ec_cors <- formatted_cors(noavg_pfc_ec_cors_df)
+noavg_flat_pfc_ec_cors_f <- fix_overcount(noavg_flat_pfc_ec_cors, pfc_names, ec_names)
+noavg_flat_pfc_ec_cors_adj <- cors.adjust.BHq(noavg_flat_pfc_ec_cors_f)
+noavg_heatmap_pfc_ec <- heatmap.draw(noavg_flat_pfc_ec_cors_adj)
+(noavg_heatmap_pfc_ec)
+
+noavg_AD_flat_pfc_ec_cors <- formatted_cors(noavg_AD_pfc_ec_cors_df)
+noavg_AD_flat_pfc_ec_cors_f <- fix_overcount(noavg_AD_flat_pfc_ec_cors, pfc_names, ec_names)
+noavg_AD_flat_pfc_ec_cors_adj <- cors.adjust.BHq(noavg_AD_flat_pfc_ec_cors_f)
+noavg_AD_heatmap_pfc_ec <- heatmap.draw(noavg_AD_flat_pfc_ec_cors_adj)
+(noavg_AD_heatmap_pfc_ec)
+
+noavg_aging_flat_pfc_ec_cors <- formatted_cors(noavg_aging_pfc_ec_cors_df)
+noavg_aging_flat_pfc_ec_cors_f <- fix_overcount(noavg_aging_flat_pfc_ec_cors, pfc_names, ec_names)
+noavg_aging_flat_pfc_ec_cors_adj <- cors.adjust.BHq(noavg_aging_flat_pfc_ec_cors_f)
+noavg_aging_heatmap_pfc_ec <- heatmap.draw(noavg_aging_flat_pfc_ec_cors_adj)
+(noavg_aging_heatmap_pfc_ec)
+
+#----------------   EXCLUDE AVG VARS Create table output of significant correlations    #----------------
+noavg_flat_pfc_ec_cors_adj$comparison <- as.factor("all")
+noavg_AD_flat_pfc_ec_cors_adj$comparison <- as.factor("ad")
+noavg_aging_flat_pfc_ec_cors_adj$comparison <- as.factor("aging")
+
+noavg_flat_pfc_ec_cors_adj$q_val=as.numeric(noavg_flat_pfc_ec_cors_adj$q_val)
+noavg_AD_flat_pfc_ec_cors_adj$q_val=as.numeric(noavg_AD_flat_pfc_ec_cors_adj$q_val)
+noavg_aging_flat_pfc_ec_cors_adj$q_val=as.numeric(noavg_aging_flat_pfc_ec_cors_adj$q_val)
+
+noavg_cor_mat_comb <- rbind(noavg_flat_pfc_ec_cors_adj, noavg_AD_flat_pfc_ec_cors_adj, noavg_aging_flat_pfc_ec_cors_adj)
+
+noavg_flat_pfc_ec_cors_adj %>% 
+  dplyr::filter(!is.na(p_if_sig)) %>% 
+  count()
+noavg_flat_pfc_ec_cors_adj %>% 
+  dplyr::filter(!is.na(p_adj_if_sig)) %>% 
+  count() 
+noavg_flat_pfc_ec_cors_adj %>% 
+  dplyr::filter(q_val<=0.2) %>% 
+  count()
+###################################################################################
+############                EXCLUDE Filopodia metrics          ####################
+# very few filopodia detected --> unreliable metric
+###################################################################################
+#----------------         setup for cor map of all cohorts        #----------------    
+ECspinevars_df <- cleaned_df %>% dplyr::select(all_of(ECspineParameters)) %>% dplyr::select(-contains("Filo")) # create df for EC spine vars
+PFCspinevars_df <- cleaned_df %>% dplyr::select(all_of(PFCspineParameters)) %>% dplyr::select(-contains("Filo"))
+ec_pfc_df=cleaned_df[, c(names(ECspinevars_df), names(PFCspinevars_df))]
+# Create correlation matrix of EC spine traits against PFC spine traits
+pfc_ec_cors <- rcorr(as.matrix(ECspinevars_df), as.matrix(PFCspinevars_df), type="spearman")
+# map rcorr output (matrix) to dataframe
+nofilo_pfc_ec_cors_df <- map(pfc_ec_cors, ~data.frame(.x))
+#----------------         setup for cor map of AD ONLY        #----------------    
+AD_ECspinevars_df <- cleaned_df %>% dplyr::filter(Cohort=="AD") %>% dplyr::select(all_of(ECspineParameters)) %>% dplyr::select(-contains("Filo"))  # create df for EC spine vars
+AD_PFCspinevars_df <- cleaned_df %>% dplyr::filter(Cohort=="AD") %>% dplyr::select(all_of(PFCspineParameters)) %>% dplyr::select(-contains("Filo"))
+AD_ec_pfc_df=cleaned_df[, c(names(AD_ECspinevars_df), names(AD_PFCspinevars_df))]
+# Create correlation matrix of EC spine traits against PFC spine traits
+AD_pfc_ec_cors <- rcorr(as.matrix(AD_ECspinevars_df), as.matrix(AD_PFCspinevars_df), type="spearman")
+# map rcorr output (matrix) to dataframe
+nofilo_AD_pfc_ec_cors_df <- map(AD_pfc_ec_cors, ~data.frame(.x))
+#----------------         setup for cor map of AGING ONLY (Ctrl/CAD)        #----------------    
+aging_ECspinevars_df <- cleaned_df %>% dplyr::filter(Cohort=="Ctrl" | Cohort =="CAD") %>% dplyr::select(all_of(ECspineParameters))  %>% dplyr::select(-contains("Filo")) # create df for EC spine vars
+aging_PFCspinevars_df <- cleaned_df %>% dplyr::filter(Cohort=="Ctrl" | Cohort =="CAD") %>% dplyr::select(all_of(PFCspineParameters)) %>% dplyr::select(-contains("Filo"))
+aging_ec_pfc_df=cleaned_df[, c(names(aging_ECspinevars_df), names(aging_PFCspinevars_df))]
+# Create correlation matrix of EC spine traits against PFC spine traits
+aging_pfc_ec_cors <- rcorr(as.matrix(aging_ECspinevars_df), as.matrix(aging_PFCspinevars_df), type="spearman")
+# map rcorr output (matrix) to dataframe
+nofilo_aging_pfc_ec_cors_df <- map(aging_pfc_ec_cors, ~data.frame(.x))
+
+#### Order columns for cor map -------------------------------------
+pfc_names <- colnames(aging_ECspinevars_df)
+ec_names <- colnames(aging_PFCspinevars_df)
+
+heatmap_roworder <- colnames(aging_ECspinevars_df)
+heatmap_colorder <- colnames(aging_PFCspinevars_df)
+
+###################       COR MATRIX/MAP FUNCTIONS       ###################   
+# input is a rcorr output object mapped onto df with r, n, P
+# also does FDR adjustment
+formatted_cors <- function(df){
+  df %>%
+    map(~rownames_to_column(.x, var="measure1")) %>%
+    map(~pivot_longer(.x, -measure1, names_to = "measure2")) %>% 
+    bind_rows(.id = "id") %>%
+    pivot_wider(names_from = id, values_from = value) %>%
+    mutate(sig_p = ifelse(P < .05, T, F), p_if_sig = ifelse(P <.05, P, NA), r_if_sig = ifelse(P <.05, r, NA)) 
+  }
+#input is output of previous function and names of the var on x and y for your final correlation heatmap
+fix_overcount <- function(df, x1, x2) {
+  subset_bool_vec <- !(((df$measure1 %in% x1)&(df$measure2 %in% x1))|((df$measure1 %in% x2)&(df$measure2 %in% x2)))
+  fix_df <- df[subset_bool_vec,]
+  fix_df <- fix_df[1:((nrow(df))/2),]
+  fix_df <- fix_df[grepl("EC", fix_df$measure1),]
+  return(fix_df)
+}
+#after fixing overcounting, adjust p-values for FDR, calculate storey's q-value
+cors.adjust.BHq <- function(df){
+  df %>%
+    mutate(P_adj = p.adjust(P, method="BH"), 
+           sig_p_adj = ifelse(P_adj < 0.2, T, F), p_adj_if_sig = ifelse(P_adj < 0.2, P_adj, NA)) %>%
+    mutate(q_val = qvalue(P)$qvalues) %>%
+    mutate(q_val = ifelse(q_val<0.05, paste0(round(q_val, 4), "\n**"), round(q_val, 4)), 
+           p_if_sig = ifelse(q_val<0.05, paste0(round(p_if_sig, 3), "\n**"), round(p_if_sig, 3)))
+}
+#input is adjusted and flattened cors df, draws the heatmap with ggplot, ggthemes, colorspace, showtext
+heatmap.draw <- function(df) {
+  # Specify order for heatmap
+  df$measure1 <- factor(df$measure1, levels=heatmap_roworder)
+  df$measure2 <- factor(df$measure2, levels=heatmap_colorder)
+  # Specify grid lines
+xgrid_positions <- seq(0.5, nlevels(df$measure1), by = 1)
+ygrid_positions <- seq(0.5, nlevels(df$measure2), by = 1)
+  # Create heatmap
+ggplot2::ggplot(data=df, aes(x=measure2, y=measure1, col=r)) + 
+   ggplot2::geom_tile(fill='white') +
+    ggplot2::geom_point(aes(size=abs(r)), shape=15) + 
+    ggplot2::scale_color_gradient2(low=("#D26768"), 
+                          mid="#f0f0f0",
+                          high=darken("#0BD5E9"), 
+                          limit=c(-1,1), 
+                          space="Lab",
+                          name="Spearman  \nCorrelation  ") +
+    ggplot2::coord_fixed() + 
+    ggplot2::labs(title="", subtitle="Only significant p-values (q < 0.2) shown\n\n", 
+                  x=NULL, y=NULL) +
+        ggthemes::theme_fivethirtyeight() + 
+  ggplot2::theme(
+          plot.background = element_rect(fill = "transparent", color = NA),
+          panel.background = element_rect(fill = "transparent", color = 'black'),
+          # axis.line = element_line(),
+          axis.text.x = ggplot2::element_text(angle=45, vjust=1, hjust=1, size=10), 
+          axis.text.y = ggplot2::element_text(vjust=1, hjust=1, size=10), 
+          legend.title = ggplot2::element_text(vjust=1, hjust=0, size=10), 
+          plot.title= element_text(hjust=0, size=15), 
+          plot.subtitle = ggplot2::element_text(hjust=0, size=12),
+          legend.position = "bottom",
+          legend.justification = "right",
+          axis.ticks = ggplot2::element_line(colour = "darkgray",  size = 1)) +
+  ggplot2::geom_text(aes(measure2, measure1, label=ifelse(q_val<0.2, p_if_sig, NA)), color="black", size=3) +
+    ggplot2::scale_x_discrete(expand=c(0,0)) +
+    ggplot2::scale_y_discrete(expand=c(0,0)) +
+    ggplot2::scale_size(range=c(1,11), guide=NULL)
+  # ggplot2::geom_hline(yintercept = ygrid_positions, color = "lightgray") +
+  # ggplot2::geom_vline(xintercept = xgrid_positions, color = "lightgray")
+}
+
+nofilo_flat_pfc_ec_cors <- formatted_cors(nofilo_pfc_ec_cors_df)
+nofilo_flat_pfc_ec_cors_f <- fix_overcount(nofilo_flat_pfc_ec_cors, pfc_names, ec_names)
+nofilo_flat_pfc_ec_cors_adj <- cors.adjust.BHq(nofilo_flat_pfc_ec_cors_f)
+nofilo_heatmap_pfc_ec <- heatmap.draw(nofilo_flat_pfc_ec_cors_adj)
+(nofilo_heatmap_pfc_ec)
+
+nofilo_AD_flat_pfc_ec_cors <- formatted_cors(nofilo_AD_pfc_ec_cors_df)
+nofilo_AD_flat_pfc_ec_cors_f <- fix_overcount(nofilo_AD_flat_pfc_ec_cors, pfc_names, ec_names)
+nofilo_AD_flat_pfc_ec_cors_adj <- cors.adjust.BHq(nofilo_AD_flat_pfc_ec_cors_f)
+nofilo_AD_heatmap_pfc_ec <- heatmap.draw(nofilo_AD_flat_pfc_ec_cors_adj)
+(nofilo_AD_heatmap_pfc_ec)
+
+nofilo_aging_flat_pfc_ec_cors <- formatted_cors(nofilo_aging_pfc_ec_cors_df)
+nofilo_aging_flat_pfc_ec_cors_f <- fix_overcount(nofilo_aging_flat_pfc_ec_cors, pfc_names, ec_names)
+nofilo_aging_flat_pfc_ec_cors_adj <- cors.adjust.BHq(nofilo_aging_flat_pfc_ec_cors_f)
+nofilo_aging_heatmap_pfc_ec <- heatmap.draw(nofilo_aging_flat_pfc_ec_cors_adj)
+(nofilo_aging_heatmap_pfc_ec)
+
+#----------------   EXCLUDE FILO VARS Create table output of significant correlations    #----------------
+nofilo_flat_pfc_ec_cors_adj$comparison <- as.factor("all")
+nofilo_AD_flat_pfc_ec_cors_adj$comparison <- as.factor("ad")
+nofilo_aging_flat_pfc_ec_cors_adj$comparison <- as.factor("aging")
+
+nofilo_flat_pfc_ec_cors_adj$q_val=as.numeric(nofilo_flat_pfc_ec_cors_adj$q_val)
+nofilo_AD_flat_pfc_ec_cors_adj$q_val=as.numeric(nofilo_AD_flat_pfc_ec_cors_adj$q_val)
+nofilo_aging_flat_pfc_ec_cors_adj$q_val=as.numeric(nofilo_aging_flat_pfc_ec_cors_adj$q_val)
+
+nofilo_cor_mat_comb <- rbind(nofilo_flat_pfc_ec_cors_adj, nofilo_AD_flat_pfc_ec_cors_adj, nofilo_aging_flat_pfc_ec_cors_adj)
+
+nofilo_flat_pfc_ec_cors_adj %>% 
+  dplyr::filter(!is.na(p_if_sig)) %>% 
+  count()
+nofilo_flat_pfc_ec_cors_adj %>% 
+  dplyr::filter(!is.na(p_adj_if_sig)) %>% 
+  count() 
+nofilo_flat_pfc_ec_cors_adj %>% 
+  dplyr::filter(q_val<=0.2) %>% 
+  count()
+
+nofilo_AD_flat_pfc_ec_cors_adj %>% 
+  dplyr::filter(!is.na(p_if_sig)) %>% 
+  count()
+nofilo_AD_flat_pfc_ec_cors_adj %>% 
+  dplyr::filter(!is.na(p_adj_if_sig)) %>% 
+  count() 
+nofilo_AD_flat_pfc_ec_cors_adj %>% 
+  dplyr::filter(q_val<=0.2) %>% 
+  count()
+
+nofilo_aging_flat_pfc_ec_cors_adj %>% 
+  dplyr::filter(!is.na(p_if_sig)) %>% 
+  count()
+nofilo_aging_flat_pfc_ec_cors_adj %>% 
+  dplyr::filter(!is.na(p_adj_if_sig)) %>% 
+  count() 
+nofilo_aging_flat_pfc_ec_cors_adj %>% 
+  dplyr::filter(q_val<=0.2) %>% 
+  count()
+```
+
+
+
+# After meeting with Jeremy (7/7/23) - exclude filopodia vars and avg vars  
+```{r no-filo-or-avg-evans-pipeline, warning=FALSE, echo=FALSE, dpi=200, fig.align='center', fig.height=12, fig.width=16}
+#---------------- setup for cor map for all cohorts #----------------    
+ECspinevars_df <- cleaned_df %>% dplyr::select(all_of(ECspineParameters)) %>% dplyr::select(-contains("Filo") & -contains("Avg")) # create df for EC spine vars
+PFCspinevars_df <- cleaned_df %>% dplyr::select(all_of(PFCspineParameters)) %>% dplyr::select(-contains("Filo") & -contains("Avg"))
+ec_pfc_df=cbind(ECspinevars_df, PFCspinevars_df)
+# Create correlation matrix of EC spine traits against PFC spine traits
+pfc_ec_cors <- rcorr(as.matrix(ECspinevars_df), as.matrix(PFCspinevars_df), type="spearman")
+# map rcorr output (matrix) to dataframe
+nofilo_pfc_ec_cors_df <- map(pfc_ec_cors, ~data.frame(.x))
+#---------------- setup for cor map for AD ONLY    #----------------    
+AD_ECspinevars_df <- cleaned_df %>% dplyr::filter(Cohort=="AD") %>% dplyr::select(all_of(ECspineParameters)) %>% dplyr::select(-contains("Filo") & -contains("Avg"))  # create df for EC spine vars
+AD_PFCspinevars_df <- cleaned_df %>% dplyr::filter(Cohort=="AD") %>% dplyr::select(all_of(PFCspineParameters)) %>% dplyr::select(-contains("Filo") & -contains("Avg"))
+AD_ec_pfc_df=cbind(AD_ECspinevars_df, AD_PFCspinevars_df)
+# Create correlation matrix of EC spine traits against PFC spine traits
+AD_pfc_ec_cors <- rcorr(as.matrix(AD_ECspinevars_df), as.matrix(AD_PFCspinevars_df), type="spearman")
+# map rcorr output (matrix) to dataframe
+nofilo_AD_pfc_ec_cors_df <- map(AD_pfc_ec_cors, ~data.frame(.x))
+#---------------- setup for cor map for Aging ONLY (Ctrl/CAD)    #----------------    
+aging_ECspinevars_df <- cleaned_df %>% dplyr::filter(Cohort=="Ctrl" | Cohort =="CAD") %>% dplyr::select(all_of(ECspineParameters))  %>% dplyr::select(-contains("Filo") & -contains("Avg")) # create df for EC spine vars
+aging_PFCspinevars_df <- cleaned_df %>% dplyr::filter(Cohort=="Ctrl" | Cohort =="CAD") %>% dplyr::select(all_of(PFCspineParameters)) %>% dplyr::select(-contains("Filo") & -contains("Avg"))
+aging_ec_pfc_df=cbind(aging_ECspinevars_df, aging_PFCspinevars_df)
+# Create correlation matrix of EC spine traits against PFC spine traits
+aging_pfc_ec_cors <- rcorr(as.matrix(aging_ECspinevars_df), as.matrix(aging_PFCspinevars_df), type="spearman")
+# map rcorr output (matrix) to dataframe
+nofilo_aging_pfc_ec_cors_df <- map(aging_pfc_ec_cors, ~data.frame(.x))
+#---------------- setup for cor map for Ctrl ONLY        #----------------    
+ctrl_ECspinevars_df <- cleaned_df %>% dplyr::filter(Cohort=="Ctrl") %>% dplyr::select(all_of(ECspineParameters))  %>% dplyr::select(-contains("Filo") & -contains("Avg")) # create df for EC spine vars
+ctrl_PFCspinevars_df <- cleaned_df %>% dplyr::filter(Cohort=="Ctrl") %>% dplyr::select(all_of(PFCspineParameters)) %>% dplyr::select(-contains("Filo") & -contains("Avg"))
+ctrl_ec_pfc_df=cbind(ctrl_ECspinevars_df, ctrl_PFCspinevars_df)
+# Create correlation matrix of EC spine traits against PFC spine traits
+ctrl_pfc_ec_cors <- rcorr(as.matrix(ctrl_ECspinevars_df), as.matrix(ctrl_PFCspinevars_df), type="spearman")
+# map rcorr output (matrix) to dataframe
+nofilo_ctrl_pfc_ec_cors_df <- map(ctrl_pfc_ec_cors, ~data.frame(.x))
+#---------------- setup for cor map for CAD ONLY        #----------------    
+cad_ECspinevars_df <- cleaned_df %>% dplyr::filter(Cohort=="CAD") %>% dplyr::select(all_of(ECspineParameters))  %>% dplyr::select(-contains("Filo") & -contains("Avg")) # create df for EC spine vars
+cad_PFCspinevars_df <- cleaned_df %>% dplyr::filter(Cohort=="CAD") %>% dplyr::select(all_of(PFCspineParameters)) %>% dplyr::select(-contains("Filo") & -contains("Avg"))
+cad_ec_pfc_df=cbind(cad_ECspinevars_df, cad_PFCspinevars_df)
+# Create correlation matrix of EC spine traits against PFC spine traits
+cad_pfc_ec_cors <- rcorr(as.matrix(cad_ECspinevars_df), as.matrix(cad_PFCspinevars_df), type="spearman")
+# map rcorr output (matrix) to dataframe
+nofilo_cad_pfc_ec_cors_df <- map(cad_pfc_ec_cors, ~data.frame(.x))
+
+#### Order columns for cor map  -------------------------------------
+pfc_names <- colnames(PFCspinevars_df)
+ec_names <- colnames(ECspinevars_df)
+
+heatmap_roworder <- colnames(ECspinevars_df)
+heatmap_colorder <- colnames(PFCspinevars_df)
+
+###################       COR MATRIX/MAP FUNCTIONS       ###################   
+# input is a rcorr output object mapped onto df with r, n, P
+# also does FDR adjustment
+formatted_cors <- function(df){
+  df %>%
+    map(~rownames_to_column(.x, var="measure1")) %>%
+    map(~pivot_longer(.x, -measure1, names_to = "measure2")) %>% 
+    bind_rows(.id = "id") %>%
+    pivot_wider(names_from = id, values_from = value) %>%
+    mutate(sig_p = ifelse(P < .05, T, F), p_if_sig = ifelse(P <.05, P, NA), r_if_sig = ifelse(P <.05, r, NA)) 
+  }
+#input is output of previous function and names of the var on x and y for your final correlation heatmap
+fix_overcount <- function(df, x1, x2) {
+  subset_bool_vec <- !(((df$measure1 %in% x1)&(df$measure2 %in% x1))|((df$measure1 %in% x2)&(df$measure2 %in% x2)))
+  fix_df <- df[subset_bool_vec,]
+  fix_df <- fix_df[1:((nrow(df))/2),]
+  fix_df <- fix_df[grepl("EC", fix_df$measure1),]
+  return(fix_df)
+}
+#after fixing overcounting, adjust p-values for FDR, calculate storey's q-value
+cors.adjust.BHq <- function(df){
+  df %>%
+    mutate(P_adj = p.adjust(P, method="BH"), 
+           sig_p_adj = ifelse(P_adj < 0.2, T, F), p_adj_if_sig = ifelse(P_adj < 0.2, P_adj, NA)) %>%
+    mutate(q_val = qvalue(P)$qvalues) %>%
+    mutate(q_val = ifelse(q_val<0.05, paste0(round(q_val, 4), "\n**"), round(q_val, 4)), 
+           p_if_sig = ifelse(q_val<0.05, paste0(round(p_if_sig, 3), "\n**"), round(p_if_sig, 3)))
+}
+#input is adjusted and flattened cors df, draws the heatmap with ggplot, ggthemes, colorspace, showtext
+heatmap.draw <- function(df) {
+  # Specify order for heatmap
+  df$measure1 <- factor(df$measure1, levels=heatmap_roworder)
+  df$measure2 <- factor(df$measure2, levels=heatmap_colorder)
+  # Specify grid lines
+xgrid_positions <- seq(0.5, nlevels(df$measure1), by = 1)
+ygrid_positions <- seq(0.5, nlevels(df$measure2), by = 1)
+
+ggplot2::ggplot(data=df, aes(x=measure2, y=measure1, col=r)) + 
+   ggplot2::geom_tile(fill='white') +
+    ggplot2::geom_point(aes(size=abs(r)), shape=15) + 
+    ggplot2::scale_color_gradient2(low=("#B2B200"), 
+                          high=darken("#0A6400"), 
+                          limit=c(-1,1), 
+                          space="Lab",
+                          name="Spearman  \nCorrelation  ") +
+    ggplot2::coord_fixed() + 
+    ggplot2::labs(title="", subtitle="Only significant p-values (q < 0.2) shown\n\n", 
+                  x=NULL, y=NULL) +
+        ggthemes::theme_fivethirtyeight() +
+  ggplot2::theme(
+          plot.background = element_rect(fill = "transparent", color = NA),
+          panel.background = element_rect(fill = "transparent", color = 'black'),
+          # axis.line = element_line(),
+          # panel.grid.major=element_line(colour="transparent"),
+          # panel.grid.minor=element_line(colour="transparent"),
+          axis.text.x = ggplot2::element_text(angle=45, vjust=1, hjust=1, size=12, color="black"), 
+          axis.text.y = ggplot2::element_text(vjust=1, hjust=1, size=12, color = "black"), 
+          legend.title = ggplot2::element_text(vjust=1, hjust=0, size=10), 
+          plot.title= element_text(hjust=0, size=15), 
+          plot.subtitle = ggplot2::element_text(hjust=0, size=12),
+          legend.background = element_rect(fill="transparent"),
+          legend.position = "top",
+          legend.justification = "right",
+          legend.direction = "horizontal",
+          axis.ticks = ggplot2::element_line(colour = "black",  size = 1)) +
+  ggplot2::geom_text(aes(measure2, measure1, label=ifelse(q_val<0.2, p_if_sig, NA)), color="black", size=3, fontface="bold") +
+    ggplot2::scale_x_discrete(expand=c(0,0)) +
+    ggplot2::scale_y_discrete(expand=c(0,0)) +
+    ggplot2::scale_size(range=c(1,11), guide=NULL)
+  # ggplot2::geom_hline(yintercept = ygrid_positions, color = "lightgray") +
+  # ggplot2::geom_vline(xintercept = xgrid_positions, color = "lightgray")
+}
+
+
+#----------------       All Groups        #----------------    
+nofilo_flat_pfc_ec_cors <- formatted_cors(nofilo_pfc_ec_cors_df)
+nofilo_flat_pfc_ec_cors_f <- fix_overcount(nofilo_flat_pfc_ec_cors, pfc_names, ec_names)
+nofilo_flat_pfc_ec_cors_adj <- cors.adjust.BHq(nofilo_flat_pfc_ec_cors_f)
+nofilo_heatmap_pfc_ec <- heatmap.draw(nofilo_flat_pfc_ec_cors_adj)
+(nofilo_heatmap_pfc_ec)
+#----------------       AD ONLY        #----------------    
+nofilo_AD_flat_pfc_ec_cors <- formatted_cors(nofilo_AD_pfc_ec_cors_df)
+nofilo_AD_flat_pfc_ec_cors_f <- fix_overcount(nofilo_AD_flat_pfc_ec_cors, pfc_names, ec_names)
+nofilo_AD_flat_pfc_ec_cors_adj <- cors.adjust.BHq(nofilo_AD_flat_pfc_ec_cors_f)
+nofilo_AD_heatmap_pfc_ec <- heatmap.draw(nofilo_AD_flat_pfc_ec_cors_adj)
+(nofilo_AD_heatmap_pfc_ec)
+#----------------       Aging ONLY (Ctrl/CAD)        #----------------    
+nofilo_aging_flat_pfc_ec_cors <- formatted_cors(nofilo_aging_pfc_ec_cors_df)
+nofilo_aging_flat_pfc_ec_cors_f <- fix_overcount(nofilo_aging_flat_pfc_ec_cors, pfc_names, ec_names)
+nofilo_aging_flat_pfc_ec_cors_adj <- cors.adjust.BHq(nofilo_aging_flat_pfc_ec_cors_f)
+nofilo_aging_heatmap_pfc_ec <- heatmap.draw(nofilo_aging_flat_pfc_ec_cors_adj)
+(nofilo_aging_heatmap_pfc_ec)
+# ggsave(
+#   plot = nofilo_aging_heatmap_pfc_ec,
+#   filename = "nofilo_aging_heatmap_pfc_ec3.png",
+#   bg = "transparent"
+# )
+#----------------       Ctrl ONLY        #----------------    
+nofilo_ctrl_flat_pfc_ec_cors <- formatted_cors(nofilo_ctrl_pfc_ec_cors_df)
+nofilo_ctrl_flat_pfc_ec_cors_f <- fix_overcount(nofilo_ctrl_flat_pfc_ec_cors, pfc_names, ec_names)
+nofilo_ctrl_flat_pfc_ec_cors_adj <- cors.adjust.BHq(nofilo_ctrl_flat_pfc_ec_cors_f)
+nofilo_ctrl_heatmap_pfc_ec <- heatmap.draw(nofilo_ctrl_flat_pfc_ec_cors_adj)
+(nofilo_ctrl_heatmap_pfc_ec)
+#----------------       CAD ONLY        #----------------    
+nofilo_cad_flat_pfc_ec_cors <- formatted_cors(nofilo_cad_pfc_ec_cors_df)
+nofilo_cad_flat_pfc_ec_cors_f <- fix_overcount(nofilo_cad_flat_pfc_ec_cors, pfc_names, ec_names)
+nofilo_cad_flat_pfc_ec_cors_adj <- cors.adjust.BHq(nofilo_cad_flat_pfc_ec_cors_f)
+nofilo_cad_heatmap_pfc_ec <- heatmap.draw(nofilo_cad_flat_pfc_ec_cors_adj)
+(nofilo_cad_heatmap_pfc_ec)
+#----------------  Create table of significant correlations - exclude FILO and Avg vars   #----------------
+nofilo_flat_pfc_ec_cors_adj$comparison <- as.factor("all")
+nofilo_AD_flat_pfc_ec_cors_adj$comparison <- as.factor("ad")
+nofilo_aging_flat_pfc_ec_cors_adj$comparison <- as.factor("aging")
+
+nofilo_flat_pfc_ec_cors_adj$q_val=as.numeric(nofilo_flat_pfc_ec_cors_adj$q_val)
+nofilo_AD_flat_pfc_ec_cors_adj$q_val=as.numeric(nofilo_AD_flat_pfc_ec_cors_adj$q_val)
+nofilo_aging_flat_pfc_ec_cors_adj$q_val=as.numeric(nofilo_aging_flat_pfc_ec_cors_adj$q_val)
+
+nofilo_cor_mat_comb <- rbind(nofilo_flat_pfc_ec_cors_adj, nofilo_AD_flat_pfc_ec_cors_adj, nofilo_aging_flat_pfc_ec_cors_adj)
+# Summary tables -------------------------
+# nofilo_flat_pfc_ec_cors_adj %>% 
+#   dplyr::filter(!is.na(p_if_sig)) %>% 
+#   count()
+# nofilo_flat_pfc_ec_cors_adj %>% 
+#   dplyr::filter(!is.na(p_adj_if_sig)) %>% 
+#   count() 
+# nofilo_flat_pfc_ec_cors_adj %>% 
+#   dplyr::filter(q_val<=0.2) %>% 
+#   count()
+# 
+# nofilo_AD_flat_pfc_ec_cors_adj %>% 
+#   dplyr::filter(!is.na(p_if_sig)) %>% 
+#   count()
+# nofilo_AD_flat_pfc_ec_cors_adj %>% 
+#   dplyr::filter(!is.na(p_adj_if_sig)) %>% 
+#   count() 
+# nofilo_AD_flat_pfc_ec_cors_adj %>% 
+#   dplyr::filter(q_val<=0.2) %>% 
+#   count()
+# 
+# nofilo_aging_flat_pfc_ec_cors_adj %>% 
+#   dplyr::filter(!is.na(p_if_sig)) %>% 
+#   count()
+# nofilo_aging_flat_pfc_ec_cors_adj %>% 
+#   dplyr::filter(!is.na(p_adj_if_sig)) %>% 
+#   count() 
+# nofilo_aging_flat_pfc_ec_cors_adj %>% 
+#   dplyr::filter(q_val<=0.2) %>% 
+#   count()
+
+nofilo_AD_flat_pfc_ec_cors_adj_labeled <- nofilo_AD_flat_pfc_ec_cors_adj %>% 
+  rename_with(.cols = 1:13, ~glue::glue("AD_{.}"))
+nofilo_aging_flat_pfc_ec_cors_adj_labeled <- nofilo_aging_flat_pfc_ec_cors_adj %>% 
+  rename_with(.cols = 1:13, ~glue::glue("Aging_{.}"))
+ad.vs.age.cor.mat <- cbind(nofilo_AD_flat_pfc_ec_cors_adj_labeled, nofilo_aging_flat_pfc_ec_cors_adj_labeled)
+
+# Closer look at correlation strength ---------------------
+ad.vs.age.cor.mat <- ad.vs.age.cor.mat %>% 
+  dplyr::mutate(direction = ifelse(AD_r > 0 & Aging_r < 0, "opposite", 
+                                        ifelse(AD_r < 0 & Aging_r > 0, "opposite","same")),
+                AD_r_strength = ifelse(abs(AD_r) < 0.1, "negligable", 
+                                           ifelse(abs(AD_r) > 0.1 & abs(AD_r) < 0.39, "weak",
+                                                  ifelse(abs(AD_r) > 0.39 & abs(AD_r) < 0.69, "moderate",
+                                                         ifelse(abs(AD_r) > 0.7 & abs(AD_r) < 0.89, "strong",
+                                                                ifelse(abs(AD_r) > 0.9, "very strong", "NA"))))),
+                Aging_r_strength = ifelse(abs(Aging_r) < 0.1, "negligable", 
+                                           ifelse(abs(Aging_r) > 0.1 & abs(Aging_r) < 0.39, "weak",
+                                                  ifelse(abs(Aging_r) > 0.39 & abs(Aging_r) < 0.69, "moderate",
+                                                         ifelse(abs(Aging_r) > 0.7 & abs(Aging_r) < 0.89, "strong",
+                                                                ifelse(abs(Aging_r) > 0.9, "very strong", "NA"))))))
+wilcoxtest = wilcox.test(ad.vs.age.cor.mat$AD_r, ad.vs.age.cor.mat$Aging_r, paired = TRUE)
+wilcox_stat <- wilcoxtest$statistic
+wilcox_pval <- wilcoxtest$p.value
+# subset moderate-strong relationships
+ad.vs.age.cor.mat %>% 
+  dplyr::select(AD_measure1, AD_measure2, AD_r, Aging_r, direction, AD_r_strength, Aging_r_strength, AD_P, Aging_P, AD_P_adj, Aging_P_adj, AD_q_val, Aging_q_val) %>% 
+  dplyr::filter(direction == "opposite") %>% 
+  dplyr::filter(!AD_r_strength=="negligable" & !Aging_r_strength=="negligable") %>%   
+  dplyr::filter(!AD_r_strength=="weak" | !Aging_r_strength=="weak") %>%
+  dplyr::mutate(p_if_sig = ifelse(AD_P<0.05, paste0(round(AD_P, 4), "**"), 
+                                  ifelse(Aging_P<0.05, paste0(round(Aging_P, 4), "**"), ""))) %>%
+  dplyr::select(-c(AD_P_adj, Aging_P_adj)) %>% 
+  dplyr::arrange(AD_r_strength, Aging_r_strength, AD_measure1, AD_measure2)
+
+
+```
+
+
+
+
+#########################
+# Demographics Bicor plots
+```{r}
+demoVars = c( "MMSE", "APOE", "PMI", "Braak_Stage", "ABC", "CERAD", "AgeDeath", "Race",  "Sex", "Frontal_NP", "Frontal_DP", "Frontal_NFT", "EC_NP", "EC_DP", "EC_NFT")
+ECspineParameters <- c(
+  "EC.Total.Length", "EC.Total.Density10um", "EC.Head.Diameter",
+  "EC.Thin.Density", "EC.Stubby.Density", "EC.Mushroom.Density",
+  "EC.Thin.Length", "EC.Stubby.Length", "EC.Mushroom.Length", 
+  "EC.Thin.Diameter", "EC.Stubby.Diameter", "EC.Mushroom.Diameter")
+# Variable to call spine parameters from PFC ONLY
+PFCspineParameters <- c(
+  "PFC.Total.Length", "PFC.Total.Density10um", "PFC.Head.Diameter", 
+  "PFC.Thin.Density", "PFC.Stubby.Density", "PFC.Mushroom.Density", 
+  "PFC.Thin.Length", "PFC.Stubby.Length", "PFC.Mushroom.Length", 
+  "PFC.Thin.Diameter", "PFC.Stubby.Diameter", "PFC.Mushroom.Diameter")
+
+#---------------- setup for cor map for Aging ONLY (Ctrl/CAD)    #----------------    
+# aging_ECspinevars_df <- cleaned_df %>% dplyr::filter(Cohort=="Ctrl" | Cohort =="CAD") %>% dplyr::select(all_of(ECspineParameters))  %>% dplyr::select(-contains("Filo") & -contains("Avg")) # create df for EC spine vars
+aging_PFCspinevars_df <- cleaned_df %>% dplyr::filter(Cohort=="Ctrl" | Cohort =="CAD") %>% dplyr::select(all_of(PFCspineParameters)) %>% dplyr::select(-contains("Filo") & -contains("Avg"))
+aging_demovars_df <- cleaned_df %>% dplyr::filter(Cohort=="Ctrl" | Cohort =="CAD") %>% dplyr::select(all_of(demoVars)) %>% 
+  rename(
+    BA28_NP=EC_NP,
+    BA28_DP=EC_DP,
+    BA28_NFT=EC_NFT,
+    BA46_NP=Frontal_NP,
+    BA46_DP=Frontal_DP,
+    BA46_NFT=Frontal_NFT)
+aging_ec_demo_df=cbind(aging_demovars_df, aging_PFCspinevars_df)
+# Create correlation matrix of EC spine traits against PFC spine traits
+aging_demo_ec_cors <- rcorr(as.matrix(aging_demovars_df), as.matrix(aging_PFCspinevars_df), type="spearman")
+# map rcorr output (matrix) to dataframe
+aging_demo_ec_cors_df <- map(aging_demo_ec_cors, ~data.frame(.x))
+
+# # pfc_names <- colnames(PFCspinevars_df)
+# ec_names <- colnames(ECspinevars_df)
+# demo_names <- colnames(aging_demovars_df)
+# 
+# heatmap_roworder <- colnames(ECspinevars_df)
+# # heatmap_colorder <- colnames(PFCspinevars_df)
+# heatmap_colorder <- colnames(aging_demovars_df)
+
+pfc_names <- colnames(PFCspinevars_df)
+# ec_names <- colnames(ECspinevars_df)
+demo_names <- colnames(aging_demovars_df)
+
+# heatmap_roworder <- colnames(ECspinevars_df)
+heatmap_roworder <- colnames(PFCspinevars_df)
+heatmap_colorder <- colnames(aging_demovars_df)
+
+###################       COR MATRIX/MAP FUNCTIONS       ###################   
+# input is a rcorr output object mapped onto df with r, n, P
+# also does FDR adjustment
+formatted_cors <- function(df){
+  df %>%
+    map(~rownames_to_column(.x, var="measure1")) %>%
+    map(~pivot_longer(.x, -measure1, names_to = "measure2")) %>% 
+    bind_rows(.id = "id") %>%
+    pivot_wider(names_from = id, values_from = value) %>%
+    mutate(sig_p = ifelse(P < .05, T, F), p_if_sig = ifelse(P <.05, P, NA), r_if_sig = ifelse(P <.05, r, NA)) 
+  }
+#input is output of previous function and names of the var on x and y for your final correlation heatmap
+fix_overcount <- function(df, x1, x2) {
+  subset_bool_vec <- !(((df$measure1 %in% x1)&(df$measure2 %in% x1))|((df$measure1 %in% x2)&(df$measure2 %in% x2)))
+  fix_df <- df[subset_bool_vec,]
+  fix_df <- fix_df[1:((nrow(df))/2),]
+  fix_df <- fix_df[grepl("PFC", fix_df$measure1),]
+  return(fix_df)
+}
+#after fixing overcounting, adjust p-values for FDR, calculate storey's q-value
+cors.adjust.BHq <- function(df){
+  df %>%
+    mutate(P_adj = p.adjust(P, method="BH"),
+           sig_p_adj = ifelse(P_adj < 0.2, T, F))
+  # p_adj_if_sig = ifelse(P_adj < 0.2, P_adj, NA)) %>% 
+#     mutate(q_val = qvalue(P)$qvalues) %>%
+#     mutate(q_val = ifelse(q_val<0.05, paste0(round(q_val, 4), "\n**"), round(q_val, 4)), 
+#            p_if_sig = ifelse(q_val<0.05, paste0(round(p_if_sig, 3), "\n**"), round(p_if_sig, 3)))
+}
+#input is adjusted and flattened cors df, draws the heatmap with ggplot, ggthemes, colorspace, showtext
+heatmap.draw <- function(df) {
+  # Specify order for heatmap
+  df$measure1 <- factor(df$measure1, levels=heatmap_roworder)
+  df$measure2 <- factor(df$measure2, levels=heatmap_colorder)
+  # Specify grid lines
+# xgrid_positions <- seq(0.5, nlevels(df$measure1), by = 1)
+# ygrid_positions <- seq(0.5, nlevels(df$measure2), by = 1)
+  # Create heatmap
+ggplot2::ggplot(data=df, aes(x=measure2, y=measure1, col=r)) + 
+   ggplot2::geom_tile(fill='white') +
+    ggplot2::geom_point(aes(size=abs(r)), shape=15) + 
+    ggplot2::scale_color_gradient2(low=("#B2B200"), 
+                          high=darken("#0A6400"), 
+                          limit=c(-1,1), 
+                          space="Lab",
+                          name="Spearman  \nCorrelation  ") +
+    ggplot2::coord_fixed() + 
+    ggplot2::labs(title="", subtitle="Only significant p-values (q < 0.2) shown\n\n", 
+                  x=NULL, y=NULL) +
+        ggthemes::theme_fivethirtyeight() + 
+  ggplot2::theme(
+          plot.background = element_rect(fill = "transparent", color = NA),
+          panel.background = element_rect(fill = "transparent", color = 'black'),
+          # axis.line = element_line(),
+          axis.text.x = ggplot2::element_text(angle=45, vjust=1, hjust=1, size=15, color="black"), 
+          axis.text.y = ggplot2::element_text(vjust=1, hjust=1, size=15, color = "black"), 
+          legend.title = ggplot2::element_text(vjust=1, hjust=0, size=10), 
+          plot.title= element_text(hjust=0, size=15), 
+          plot.subtitle = ggplot2::element_text(hjust=0, size=12),
+          legend.background = element_rect(fill="transparent"),
+          legend.position = "right",
+          legend.justification = "right",
+          legend.direction = "vertical",
+          axis.ticks = ggplot2::element_line(colour = "black",  size = 1)) +
+  ggplot2::geom_text(aes(measure2, measure1, label=ifelse(sig_p<0.2, p_if_sig, NA)), color="white", size=3, fontface="bold") +
+    ggplot2::scale_x_discrete(expand=c(0,0)) +
+    ggplot2::scale_y_discrete(expand=c(0,0)) +
+    ggplot2::scale_size(range=c(1,11), guide=NULL)
+  # ggplot2::geom_hline(yintercept = ygrid_positions, color = "lightgray") +
+  # ggplot2::geom_vline(xintercept = xgrid_positions, color = "lightgray")
+}
+  
+nofilo_aging_flat_pfc_ec_cors <- formatted_cors(aging_demo_ec_cors_df)
+nofilo_aging_flat_pfc_ec_cors_f <- fix_overcount(nofilo_aging_flat_pfc_ec_cors, demo_names, pfc_names)
+nofilo_aging_flat_pfc_ec_cors_adj <- cors.adjust.BHq(nofilo_aging_flat_pfc_ec_cors_f)
+nofilo_aging_heatmap_pfc_ec <- heatmap.draw(nofilo_aging_flat_pfc_ec_cors_adj)
+(nofilo_aging_heatmap_pfc_ec)
+ggsave(
+  plot = nofilo_aging_heatmap_pfc_ec,
+  filename = "PFCvsDemosaging_heatmap.png",
+  bg = "transparent"
+)
+
+
+##############################################
+##############################################
+# aging_PFCspinevars_df <- cleaned_df %>% dplyr::filter(Cohort=="Ctrl" | Cohort =="CAD") %>% dplyr::select(all_of(PFCspineParameters)) %>% dplyr::select(-contains("Filo") & -contains("Avg"))
+aging_ECspinevars_df <- cleaned_df %>% dplyr::filter(Cohort=="Ctrl" | Cohort =="CAD") %>% dplyr::select(all_of(ECspineParameters))  %>% dplyr::select(-contains("Filo") & -contains("Avg")) # create df for EC spine vars
+aging_demovars_df <- cleaned_df %>% dplyr::filter(Cohort=="Ctrl" | Cohort =="CAD") %>% dplyr::select(all_of(demoVars)) %>% 
+  rename(
+    BA28_NP=EC_NP,
+    BA28_DP=EC_DP,
+    BA28_NFT=EC_NFT,
+    BA46_NP=Frontal_NP,
+    BA46_DP=Frontal_DP,
+    BA46_NFT=Frontal_NFT)
+aging_ec_demo_df=cbind(aging_demovars_df, aging_ECspinevars_df)
+# Create correlation matrix of EC spine traits against PFC spine traits
+aging_demo_ec_cors <- rcorr(as.matrix(aging_demovars_df), as.matrix(aging_ECspinevars_df), type="spearman")
+# map rcorr output (matrix) to dataframe
+aging_demo_ec_cors_df <- map(aging_demo_ec_cors, ~data.frame(.x))
+
+# # pfc_names <- colnames(PFCspinevars_df)
+# ec_names <- colnames(ECspinevars_df)
+# demo_names <- colnames(aging_demovars_df)
+# 
+# heatmap_roworder <- colnames(ECspinevars_df)
+# # heatmap_colorder <- colnames(PFCspinevars_df)
+# heatmap_colorder <- colnames(aging_demovars_df)
+
+# pfc_names <- colnames(PFCspinevars_df)
+ec_names <- colnames(ECspinevars_df)
+demo_names <- colnames(aging_demovars_df)
+
+heatmap_roworder <- colnames(ECspinevars_df)
+# heatmap_roworder <- colnames(PFCspinevars_df)
+heatmap_colorder <- colnames(aging_demovars_df)
+
+###################       COR MATRIX/MAP FUNCTIONS       ###################   
+# input is a rcorr output object mapped onto df with r, n, P
+# also does FDR adjustment
+formatted_cors <- function(df){
+  df %>%
+    map(~rownames_to_column(.x, var="measure1")) %>%
+    map(~pivot_longer(.x, -measure1, names_to = "measure2")) %>% 
+    bind_rows(.id = "id") %>%
+    pivot_wider(names_from = id, values_from = value) %>%
+    mutate(sig_p = ifelse(P < .05, T, F), p_if_sig = ifelse(P <.05, P, NA), r_if_sig = ifelse(P <.05, r, NA)) 
+  }
+#input is output of previous function and names of the var on x and y for your final correlation heatmap
+fix_overcount <- function(df, x1, x2) {
+  subset_bool_vec <- !(((df$measure1 %in% x1)&(df$measure2 %in% x1))|((df$measure1 %in% x2)&(df$measure2 %in% x2)))
+  fix_df <- df[subset_bool_vec,]
+  fix_df <- fix_df[1:((nrow(df))/2),]
+  fix_df <- fix_df[grepl("EC", fix_df$measure1),]
+  return(fix_df)
+}
+#after fixing overcounting, adjust p-values for FDR, calculate storey's q-value
+cors.adjust.BHq <- function(df){
+  df %>%
+    mutate(P_adj = p.adjust(P, method="BH"), 
+           sig_p_adj = ifelse(P_adj < 0.2, T, F), p_adj_if_sig = ifelse(P_adj < 0.2, P_adj, NA)) %>%
+    mutate(q_val = qvalue(P)$qvalues) %>%
+    mutate(q_val = ifelse(q_val<0.05, paste0(round(q_val, 4), "\n**"), round(q_val, 4)), 
+           p_if_sig = ifelse(q_val<0.05, paste0(round(p_if_sig, 3), "\n**"), round(p_if_sig, 3)))
+}
+#input is adjusted and flattened cors df, draws the heatmap with ggplot, ggthemes, colorspace, showtext
+heatmap.draw <- function(df) {
+  # Specify order for heatmap
+  df$measure1 <- factor(df$measure1, levels=heatmap_roworder)
+  df$measure2 <- factor(df$measure2, levels=heatmap_colorder)
+
+ggplot2::ggplot(data=df, aes(x=measure2, y=measure1, col=r)) + 
+   ggplot2::geom_tile(fill='white') +
+    ggplot2::geom_point(aes(size=abs(r)), shape=15) + 
+    ggplot2::scale_color_gradient2(low=("#B2B200"), 
+                          high=darken("#0A6400"), 
+                          limit=c(-1,1), 
+                          space="Lab",
+                          name="Spearman  \nCorrelation  ") +
+    ggplot2::coord_fixed() + 
+    ggplot2::labs(title="", subtitle="Only significant p-values (q < 0.2) shown\n\n", 
+                  x=NULL, y=NULL) +
+        ggthemes::theme_fivethirtyeight() +
+  ggplot2::theme(
+          plot.background = element_rect(fill = "transparent", color = NA),
+          panel.background = element_rect(fill = "transparent", color = 'black'),
+          # axis.line = element_line(),
+          # panel.grid.major=element_line(colour="transparent"),
+          # panel.grid.minor=element_line(colour="transparent"),
+          axis.text.x = ggplot2::element_text(angle=45, vjust=1, hjust=1, size=15, color="black"), 
+          axis.text.y = ggplot2::element_text(vjust=1, hjust=1, size=15, color = "black"), 
+          legend.title = ggplot2::element_text(vjust=1, hjust=0, size=10), 
+          plot.title= element_text(hjust=0, size=15), 
+          plot.subtitle = ggplot2::element_text(hjust=0, size=12),
+          legend.background = element_rect(fill="transparent"),
+          legend.position = "right",
+          legend.justification = "right",
+          legend.direction = "vertical",
+          axis.ticks = ggplot2::element_line(colour = "black",  size = 1)) +
+  ggplot2::geom_text(aes(measure2, measure1, label=ifelse(q_val<0.2, p_if_sig, NA)), color="black", size=3, fontface="bold") +
+    ggplot2::scale_x_discrete(expand=c(0,0)) +
+    ggplot2::scale_y_discrete(expand=c(0,0)) +
+    ggplot2::scale_size(range=c(1,11), guide=NULL)
+  # ggplot2::geom_hline(yintercept = ygrid_positions, color = "lightgray") +
+  # ggplot2::geom_vline(xintercept = xgrid_positions, color = "lightgray")
+}
+#----------------       Aging ONLY (Ctrl/CAD)        #----------------    
+nofilo_aging_flat_pfc_ec_cors <- formatted_cors(aging_demo_ec_cors_df)
+nofilo_aging_flat_pfc_ec_cors_f <- fix_overcount(nofilo_aging_flat_pfc_ec_cors, demo_names, ec_names)
+nofilo_aging_flat_pfc_ec_cors_adj <- cors.adjust.BHq(nofilo_aging_flat_pfc_ec_cors_f)
+nofilo_aging_heatmap_pfc_ec <- heatmap.draw(nofilo_aging_flat_pfc_ec_cors_adj)
+(nofilo_aging_heatmap_pfc_ec)
+ggsave(
+  plot = nofilo_aging_heatmap_pfc_ec,
+  filename = "ECvsDemosaging_heatmap4.png",
+  bg = "transparent"
+)
+```
+
+
+
+<!-- # Modeling -->
+<!-- # try MMSE model -->
+```{r, echo=FALSE, warning=FALSE, eval=FALSE}
+library(lme4)
+# Distribution of response variable
+hist(cleaned_df$MMSE)
+# only work with cases with MMSE scores
+cleaned_df <- cleaned_df  %>% dplyr::mutate(binaryAPOE = ifelse(APOE<=2, 0, 1))
+cleaned_df$Cohort <- relevel(as.factor(cleaned_df$Cohort), ref = "Ctrl")
+
+basic.lm <- lm(MMSE ~ Cohort, data=cleaned_df)
+summary(basic.lm)
+(prelim_plot <- ggplot(cleaned_df, aes(x = Cohort, y = MMSE)) +
+  geom_point() +
+  geom_smooth(method = "lm"))
+plot(basic.lm, which = 1)  # not perfect... 
+plot(basic.lm, which = 2)  # a bit off at the extremes, but that's often the case; again doesn't look too bad
+age.lm <- lm(MMSE ~ Cohort + AgeDeath, data=cleaned_df)
+summary(lm(MMSE ~ Cohort  + APOE + EC.Avg.Density, data=cleaned_df))
+summary(lm(MMSE ~ Cohort  + APOE + PFC.Avg.Density, data=cleaned_df))
+summary(lm(MMSE ~ Cohort  + APOE + Braak_Stage + CERAD + PFC.Total.Density10um + EC.Total.Density10um , data=cleaned_df))
+
+
+# Function to calculate mean squared error
+mse <- function(sm) {mean(sm$residuals^2)}
+# is MMSE correlated with dendritic spine phenotypes?
+# EC base models ---------
+ecdenlm <- lm(MMSE ~ Cohort + EC.Total.Density10um, data = cleaned_df)
+mse(ecdenlm) # 19.02
+eclenlm <- lm(MMSE ~ Cohort + EC.Total.Length, data = cleaned_df)
+mse(eclenlm) # 19.00
+ecdialm <- lm(MMSE ~ Cohort + EC.Head.Diameter, data = cleaned_df)
+mse(ecdialm) # 19.029
+ecavglenlm <- lm(MMSE ~ Cohort + EC.Avg.Length, data = cleaned_df)
+mse(ecavglenlm) # 19.07
+ecavgdialm <- lm(MMSE ~ Cohort + EC.Avg.Diameter, data = cleaned_df)
+mse(ecavgdialm) # 18.98
+ecthdenlm <- lm(MMSE ~ Cohort + EC.Thin.Density, data = cleaned_df)
+mse(ecthdenlm) # 18.93
+ecmushdenlm <- lm(MMSE ~ Cohort + EC.Mushroom.Density, data = cleaned_df)
+mse(ecmushdenlm) # 18.87
+ecstubdenlm <- lm(MMSE ~ Cohort + EC.Stubby.Density, data = cleaned_df)
+mse(ecstubdenlm) # 17.93
+ecfilodenlm <- lm(MMSE ~ Cohort + EC.Filopodia.Density, data = cleaned_df)
+mse(ecfilodenlm) # 19.12
+ecthlenlm <- lm(MMSE ~ Cohort + EC.Thin.Length, data = cleaned_df)
+mse(ecthlenlm) # 18.46
+ecmushlenlm <- lm(MMSE ~ Cohort + EC.Mushroom.Length, data = cleaned_df)
+mse(ecmushlenlm) # 17.26
+ecstublenlm <- lm(MMSE ~ Cohort + EC.Stubby.Length, data = cleaned_df)
+mse(ecstublenlm) # 13.34
+ecfilolenlm <- lm(MMSE ~ Cohort + EC.Filopodia.Length, data = cleaned_df)
+mse(ecfilolenlm) # 13.20
+ecthdialm <- lm(MMSE ~ Cohort + EC.Thin.Diameter, data = cleaned_df)
+mse(ecthdialm) # 19.08
+ecmushdialm <- lm(MMSE ~ Cohort + EC.Mushroom.Diameter, data = cleaned_df)
+mse(ecmushdialm) # 18.89
+ecstubdialm <- lm(MMSE ~ Cohort + EC.Stubby.Diameter, data = cleaned_df)
+mse(ecstubdialm) # 19.07
+ecfilodialm <- lm(MMSE ~ Cohort + EC.Filopodia.Diameter, data = cleaned_df)
+mse(ecfilodialm) # 14.10
+
+
+# PFC base models ---------
+pfcdenlm <- lm(MMSE ~ Cohort + PFC.Total.Density10um, data = cleaned_df)
+mse(pfcdenlm) # 28.96
+pfclenlm <- lm(MMSE ~ Cohort + PFC.Total.Length, data = cleaned_df)
+mse(pfclenlm) # 27.31
+pfcdialm <- lm(MMSE ~ Cohort + PFC.Head.Diameter, data = cleaned_df)
+mse(pfcdialm) # 27.70
+pfcavglenlm <- lm(MMSE ~ Cohort + PFC.Avg.Length, data = cleaned_df)
+mse(pfcavglenlm) # 28.96
+pfcavgdialm <- lm(MMSE ~ Cohort + PFC.Avg.Diameter, data = cleaned_df)
+mse(pfcavgdialm) # 26.23
+pfcthdenlm <- lm(MMSE ~ Cohort + PFC.Thin.Density, data = cleaned_df)
+mse(pfcthdenlm) # 28.31
+pfcmushdenlm <- lm(MMSE ~ Cohort + PFC.Mushroom.Density, data = cleaned_df)
+mse(pfcmushdenlm) # 28.39
+pfcstubdenlm <- lm(MMSE ~ Cohort + PFC.Stubby.Density, data = cleaned_df)
+mse(pfcstubdenlm) # 25.82
+pfcfilodenlm <- lm(MMSE ~ Cohort + PFC.Filopodia.Density, data = cleaned_df)
+mse(pfcfilodenlm) # 28.66
+pfcthlenlm <- lm(MMSE ~ Cohort + PFC.Thin.Length, data = cleaned_df)
+mse(pfcthlenlm) # 24.17
+pfcmushlenlm <- lm(MMSE ~ Cohort + PFC.Mushroom.Length, data = cleaned_df)
+mse(pfcmushlenlm) # 28.99
+pfcstublenlm <- lm(MMSE ~ Cohort + PFC.Stubby.Length, data = cleaned_df)
+mse(pfcstublenlm) # 26.95
+pfcfilolenlm <- lm(MMSE ~ Cohort + PFC.Filopodia.Length, data = cleaned_df)
+mse(pfcfilolenlm) # 30.90
+pfcthdialm <- lm(MMSE ~ Cohort + PFC.Thin.Diameter, data = cleaned_df)
+mse(pfcthdialm) # 28.16
+pfcmushdialm <- lm(MMSE ~ Cohort + PFC.Mushroom.Diameter, data = cleaned_df)
+mse(pfcmushdialm) # 28.06
+pfcstubdialm <- lm(MMSE ~ Cohort + PFC.Stubby.Diameter, data = cleaned_df)
+mse(pfcstubdialm) # 21.03
+pfcfilodialm <- lm(MMSE ~ Cohort + PFC.Filopodia.Diameter, data = cleaned_df)
+mse(pfcfilodialm) # 30.77
+
+
+stargazer(ecdenlm, eclenlm, ecdialm, type = "text", title = "EC across morphologies",
+          notes= c("(1) density, (2) length, (3) diameter"))
+stargazer(ecthdenlm, ecmushdenlm, ecstubdenlm, ecfilodenlm, type = "text", title = "EC Density Models",
+          notes= c("(1) thin, (2) mushroom, (3) stubby, (4) filopodium")) # ns - EC stubby spine density 
+stargazer(ecthlenlm, ecmushlenlm, ecstublenlm, ecfilolenlm, type = "text", title = "EC Length Models",
+          notes= c("(1) thin, (2) mushroom, (3) stubby, (4) filopodium")) # EC stubby len sig, lg adj R filo len almost sig
+stargazer(ecthdialm, ecmushdialm, ecstubdialm, ecfilodialm, type = "text", title = "EC Diameter Models",
+          notes= c("(1) thin, (2) mushroom, (3) stubby, (4) filopodium")) # lg adj R filo dia almost sig
+
+stargazer(pfcdenlm, pfclenlm, pfcdialm, type = "text", title = "PFC Total Models", notes= c("(1) density, (2) length, (3) diameter"))
+stargazer(pfcthdenlm, pfcmushdenlm, pfcstubdenlm, pfcfilodenlm, type = "text", title = "PFC Density Models",
+          notes= c("(1) thin, (2) mushroom, (3) stubby, (4) filopodium")) ##Stuby density sig
+stargazer(pfcthlenlm, pfcmushlenlm, pfcstublenlm, pfcfilolenlm, type = "text", title = "PFC Length Models",
+          notes= c("(1) thin, (2) mushroom, (3) stubby, (4) filopodium")) # Thin length sig, lg adj R stub len almost sig
+stargazer(pfcthdialm, pfcmushdialm, pfcstubdialm, pfcfilodialm, type = "text", title = "PFC Diameter Models",
+          notes= c("(1) thin, (2) mushroom, (3) stubby, (4) filopodium")) # Stub dia sig
+
+
+
+```
+<!-- # Find best MMSE predictive model across cohorts -->
+<!-- ## Lowest MSE in EC: Filo length, stub length, filo dia  -->
+<!-- ## Lowest MSE in PFC: stub dia, thin length, stub den, stub len  -->
+```{r, echo=FALSE, warning=FALSE, eval=FALSE}
+eclowMSE.lm <- lm(MMSE ~ Cohort + EC.Filopodia.Length + EC.Stubby.Length + EC.Filopodia.Diameter, data = cleaned_df)
+summary(eclowMSE.lm)
+pfclowMSE.lm <- lm(MMSE ~ Cohort + PFC.Stubby.Diameter + PFC.Thin.Length + PFC.Stubby.Density, data = cleaned_df)
+summary(pfclowMSE.lm)
+
+ecMSE.lm <- lm(MMSE ~ Cohort + EC.Filopodia.Length + EC.Stubby.Length + EC.Filopodia.Diameter, data = cleaned_df)
+summary(ecMSE.lm)
+pfclowMSE.lm <- lm(MMSE ~ Cohort + PFC.Stubby.Diameter + PFC.Thin.Length + PFC.Stubby.Density, data = cleaned_df)
+summary(pfclowMSE.lm)
+
+lowMSE.lm <- lm(MMSE ~ Cohort + EC.Filopodia.Length + EC.Stubby.Length + EC.Filopodia.Diameter + PFC.Stubby.Diameter + PFC.Thin.Length + PFC.Stubby.Density, data = cleaned_df)
+summary(lowMSE.lm)
+
+summary(lm(MMSE ~ Cohort + EC.Stubby.Length + PFC.Stubby.Diameter , data = cleaned_df))
+summary(lowMSE.lm)
+
+```
+<!-- # Test if EC.stubby.length. pfc.stubby.diameter can predict  -->
+```{r, echo=FALSE, warning=FALSE, eval=FALSE}
+aging.df <- cleaned_df %>% dplyr::filter(!Cohort=="AD") 
+aging.df$Cohort <- relevel(as.factor(aging.df$Cohort), ref = "Ctrl")
+
+
+agECdenlm <- lm(MMSE ~ Cohort + EC.Total.Density10um, data = aging.df)
+# mse(ecdenlm) # 19.02
+agEClenlm <- lm(MMSE ~ Cohort + EC.Total.Length, data = aging.df)
+# mse(eclenlm) # 19.00
+agECdialm <- lm(MMSE ~ Cohort + EC.Head.Diameter, data = aging.df)
+# mse(ecdialm) # 19.029
+agECavglenlm <- lm(MMSE ~ Cohort + EC.Avg.Length, data = aging.df)
+# mse(ecavglenlm) # 19.07
+agECavgdialm <- lm(MMSE ~ Cohort + EC.Avg.Diameter, data = aging.df)
+# mse(ecavgdialm) # 18.98
+agECthdenlm <- lm(MMSE ~ Cohort + EC.Thin.Density, data = aging.df)
+# mse(ecthdenlm) # 18.93
+agECmushdenlm <- lm(MMSE ~ Cohort + EC.Mushroom.Density, data = aging.df)
+# mse(ecmushdenlm) # 18.87
+agECstubdenlm <- lm(MMSE ~ Cohort + EC.Stubby.Density, data = aging.df)
+# mse(ecstubdenlm) # 17.93
+agECfilodenlm <- lm(MMSE ~ Cohort + EC.Filopodia.Density, data = aging.df)
+# mse(ecfilodenlm) # 19.12
+agECthlenlm <- lm(MMSE ~ Cohort + EC.Thin.Length, data = aging.df)
+# mse(ecthlenlm) # 18.46
+agECmushlenlm <- lm(MMSE ~ Cohort + EC.Mushroom.Length, data = aging.df)
+# mse(ecmushlenlm) # 17.26
+agECstublenlm <- lm(MMSE ~ Cohort + EC.Stubby.Length, data = aging.df)
+# mse(ecstublenlm) # 13.34
+agECfilolenlm <- lm(MMSE ~ Cohort + EC.Filopodia.Length, data = aging.df)
+# mse(ecfilolenlm) # 13.20
+agECthdialm <- lm(MMSE ~ Cohort + EC.Thin.Diameter, data = aging.df)
+# mse(ecthdialm) # 19.08
+agECmushdialm <- lm(MMSE ~ Cohort + EC.Mushroom.Diameter, data = aging.df)
+# mse(ecmushdialm) # 18.89
+agECstubdialm <- lm(MMSE ~ Cohort + EC.Stubby.Diameter, data = aging.df)
+# mse(ecstubdialm) # 19.07
+agECfilodialm <- lm(MMSE ~ Cohort + EC.Filopodia.Diameter, data = aging.df)
+# mse(ecfilodialm) # 14.10
+
+
+# PFC base models ---------
+agPFCdenlm <- lm(MMSE ~ Cohort + PFC.Total.Density10um, data = aging.df)
+# mse(pfcdenlm) # 28.96
+agPFClenlm <- lm(MMSE ~ Cohort + PFC.Total.Length, data = aging.df)
+# mse(pfclenlm) # 27.31
+agPFCdialm <- lm(MMSE ~ Cohort + PFC.Head.Diameter, data = aging.df)
+# mse(pfcdialm) # 27.70
+agPFCavglenlm <- lm(MMSE ~ Cohort + PFC.Avg.Length, data = aging.df)
+# mse(pfcavglenlm) # 28.96
+agPFCavgdialm <- lm(MMSE ~ Cohort + PFC.Avg.Diameter, data = aging.df)
+# mse(pfcavgdialm) # 26.23
+agPFCthdenlm <- lm(MMSE ~ Cohort + PFC.Thin.Density, data = aging.df)
+# mse(pfcthdenlm) # 28.31
+agPFCmushdenlm <- lm(MMSE ~ Cohort + PFC.Mushroom.Density, data = aging.df)
+# mse(pfcmushdenlm) # 28.39
+agPFCstubdenlm <- lm(MMSE ~ Cohort + PFC.Stubby.Density, data = aging.df)
+# mse(pfcstubdenlm) # 25.82
+agPFCfilodenlm <- lm(MMSE ~ Cohort + PFC.Filopodia.Density, data = aging.df)
+# mse(pfcfilodenlm) # 28.66
+agPFCthlenlm <- lm(MMSE ~ Cohort + PFC.Thin.Length, data = aging.df)
+# mse(pfcthlenlm) # 24.17
+agPFCmushlenlm <- lm(MMSE ~ Cohort + PFC.Mushroom.Length, data = aging.df)
+# mse(pfcmushlenlm) # 28.99
+agPFCstublenlm <- lm(MMSE ~ Cohort + PFC.Stubby.Length, data = aging.df)
+# mse(pfcstublenlm) # 26.95
+agPFCfilolenlm <- lm(MMSE ~ Cohort + PFC.Filopodia.Length, data = aging.df)
+# mse(pfcfilolenlm) # 30.90
+agPFCthdialm <- lm(MMSE ~ Cohort + PFC.Thin.Diameter, data = aging.df)
+# mse(pfcthdialm) # 28.16
+agPFCmushdialm <- lm(MMSE ~ Cohort + PFC.Mushroom.Diameter, data = aging.df)
+# mse(pfcmushdialm) # 28.06
+agPFCstubdialm <- lm(MMSE ~ Cohort + PFC.Stubby.Diameter, data = aging.df)
+# mse(pfcstubdialm) # 21.03
+agPFCfilodialm <- lm(MMSE ~ Cohort + PFC.Filopodia.Diameter, data = aging.df)
+# mse(pfcfilodialm) # 30.77
+
+
+stargazer(agECdenlm, agEClenlm, agECdialm, type = "text", title = "EC Aging across morphologies",
+          notes= c("(1) density, (2) length, (3) diameter"))
+stargazer(agECthdenlm, agECmushdenlm, agECstubdenlm, agECfilodenlm, type = "text", title = "EC Aging Density Models",
+          notes= c("(1) thin, (2) mushroom, (3) stubby, (4) filopodium")) 
+stargazer(agECthlenlm, agECmushlenlm, agECstublenlm, agECfilolenlm, type = "text", title = "EC Aging Length Models",
+          notes= c("(1) thin, (2) mushroom, (3) stubby, (4) filopodium")) 
+stargazer(agECthdialm, agECmushdialm, agECstubdialm, agECfilodialm, type = "text", title = "EC Aging Diameter Models",
+          notes= c("(1) thin, (2) mushroom, (3) stubby, (4) filopodium")) 
+
+stargazer(agPFCdenlm, agPFClenlm, agPFCdialm, type = "text", title = "PFC Aging Total Models", notes= c("(1) density, (2) length, (3) diameter"))
+stargazer(agPFCthdenlm, agPFCmushdenlm, agPFCstubdenlm, agPFCfilodenlm, type = "text", title = "PFC Aging Density Models",
+          notes= c("(1) thin, (2) mushroom, (3) stubby, (4) filopodium")) 
+stargazer(agPFCthlenlm, agPFCmushlenlm, agPFCstublenlm, agPFCfilolenlm, type = "text", title = "PFC Aging Length Models",
+          notes= c("(1) thin, (2) mushroom, (3) stubby, (4) filopodium")) 
+stargazer(agPFCthdialm, agPFCmushdialm, agPFCstubdialm, agPFCfilodialm, type = "text", title = "PFC Aging Diameter Models",
+          notes= c("(1) thin, (2) mushroom, (3) stubby, (4) filopodium"))
+
+
+summary(lm(MMSE ~ Cohort + EC.Stubby.Length + PFC.Stubby.Diameter , data = aging.df))
+```
+<!-- # Test which spine traits best predict MMSE in AD only cohort   -->
+```{r, echo=FALSE, warning=FALSE, eval=FALSE}
+AD.df <- cleaned_df %>% dplyr::filter(Cohort=="AD") 
+
+adECdenlm <- lm(MMSE ~ EC.Total.Density10um, data = AD.df)
+# mse(ecdenlm) # 19.02
+adEClenlm <- lm(MMSE ~ EC.Total.Length, data = AD.df)
+# mse(eclenlm) # 19.00
+adECdialm <- lm(MMSE ~ EC.Head.Diameter, data = AD.df)
+# mse(ecdialm) # 19.029
+adECavglenlm <- lm(MMSE ~ EC.Avg.Length, data = AD.df)
+# mse(ecavglenlm) # 19.07
+adECavgdialm <- lm(MMSE ~ EC.Avg.Diameter, data = AD.df)
+# mse(ecavgdialm) # 18.98
+adECthdenlm <- lm(MMSE ~ EC.Thin.Density, data = AD.df)
+# mse(ecthdenlm) # 18.93
+adECmushdenlm <- lm(MMSE ~ EC.Mushroom.Density, data = AD.df)
+# mse(ecmushdenlm) # 18.87
+adECstubdenlm <- lm(MMSE ~ EC.Stubby.Density, data = AD.df)
+# mse(ecstubdenlm) # 17.93
+adECfilodenlm <- lm(MMSE ~ EC.Filopodia.Density, data = AD.df)
+# mse(ecfilodenlm) # 19.12
+adECthlenlm <- lm(MMSE ~ EC.Thin.Length, data = AD.df)
+# mse(ecthlenlm) # 18.46
+adECmushlenlm <- lm(MMSE ~ EC.Mushroom.Length, data = AD.df)
+# mse(ecmushlenlm) # 17.26
+adECstublenlm <- lm(MMSE ~ EC.Stubby.Length, data = AD.df)
+# mse(ecstublenlm) # 13.34
+adECfilolenlm <- lm(MMSE ~ EC.Filopodia.Length, data = AD.df)
+# mse(ecfilolenlm) # 13.20
+adECthdialm <- lm(MMSE ~ EC.Thin.Diameter, data = AD.df)
+# mse(ecthdialm) # 19.08
+adECmushdialm <- lm(MMSE ~ EC.Mushroom.Diameter, data = AD.df)
+# mse(ecmushdialm) # 18.89
+adECstubdialm <- lm(MMSE ~ EC.Stubby.Diameter, data = AD.df)
+# mse(ecstubdialm) # 19.07
+adECfilodialm <- lm(MMSE ~ EC.Filopodia.Diameter, data = AD.df)
+# mse(ecfilodialm) # 14.10
+
+
+# PFC base models ---------
+adPFCdenlm <- lm(MMSE ~ PFC.Total.Density10um, data = AD.df)
+# mse(pfcdenlm) # 28.96
+adPFClenlm <- lm(MMSE ~ PFC.Total.Length, data = AD.df)
+# mse(pfclenlm) # 27.31
+adPFCdialm <- lm(MMSE ~ PFC.Head.Diameter, data = AD.df)
+# mse(pfcdialm) # 27.70
+adPFCavglenlm <- lm(MMSE ~ PFC.Avg.Length, data = AD.df)
+# mse(pfcavglenlm) # 28.96
+adPFCavgdialm <- lm(MMSE ~ PFC.Avg.Diameter, data = AD.df)
+# mse(pfcavgdialm) # 26.23
+adPFCthdenlm <- lm(MMSE ~ PFC.Thin.Density, data = AD.df)
+# mse(pfcthdenlm) # 28.31
+adPFCmushdenlm <- lm(MMSE ~ PFC.Mushroom.Density, data = AD.df)
+# mse(pfcmushdenlm) # 28.39
+adPFCstubdenlm <- lm(MMSE ~ PFC.Stubby.Density, data = AD.df)
+# mse(pfcstubdenlm) # 25.82
+adPFCfilodenlm <- lm(MMSE ~ PFC.Filopodia.Density, data = AD.df)
+# mse(pfcfilodenlm) # 28.66
+adPFCthlenlm <- lm(MMSE ~ PFC.Thin.Length, data = AD.df)
+# mse(pfcthlenlm) # 24.17
+adPFCmushlenlm <- lm(MMSE ~ PFC.Mushroom.Length, data = AD.df)
+# mse(pfcmushlenlm) # 28.99
+adPFCstublenlm <- lm(MMSE ~ PFC.Stubby.Length, data = AD.df)
+# mse(pfcstublenlm) # 26.95
+adPFCfilolenlm <- lm(MMSE ~ PFC.Filopodia.Length, data = AD.df)
+# mse(pfcfilolenlm) # 30.90
+adPFCthdialm <- lm(MMSE ~ PFC.Thin.Diameter, data = AD.df)
+# mse(pfcthdialm) # 28.16
+adPFCmushdialm <- lm(MMSE ~ PFC.Mushroom.Diameter, data = AD.df)
+# mse(pfcmushdialm) # 28.06
+adPFCstubdialm <- lm(MMSE ~ PFC.Stubby.Diameter, data = AD.df)
+# mse(pfcstubdialm) # 21.03
+adPFCfilodialm <- lm(MMSE ~ PFC.Filopodia.Diameter, data = AD.df)
+# mse(pfcfilodialm) # 30.77
+
+
+stargazer(adECdenlm, adEClenlm, adECdialm, type = "text", title = "EC AD across morphologies",
+          notes= c("(1) density, (2) length, (3) diameter"))
+stargazer(adECthdenlm, adECmushdenlm, adECstubdenlm, adECfilodenlm, type = "text", title = "EC AD Density Models",
+          notes= c("(1) thin, (2) mushroom, (3) stubby, (4) filopodium")) 
+stargazer(adECthlenlm, adECmushlenlm, adECstublenlm, adECfilolenlm, type = "text", title = "EC AD Length Models",
+          notes= c("(1) thin, (2) mushroom, (3) stubby, (4) filopodium")) 
+stargazer(adECthdialm, adECmushdialm, adECstubdialm, adECfilodialm, type = "text", title = "EC AD Diameter Models",
+          notes= c("(1) thin, (2) mushroom, (3) stubby, (4) filopodium")) 
+
+stargazer(adPFCdenlm, adPFClenlm, adPFCdialm, type = "text", title = "PFC AD Total Models", notes= c("(1) density, (2) length, (3) diameter"))
+stargazer(adPFCthdenlm, adPFCmushdenlm, adPFCstubdenlm, adPFCfilodenlm, type = "text", title = "PFC AD Density Models",
+          notes= c("(1) thin, (2) mushroom, (3) stubby, (4) filopodium")) 
+stargazer(adPFCthlenlm, adPFCmushlenlm, adPFCstublenlm, adPFCfilolenlm, type = "text", title = "PFC AD Length Models",
+          notes= c("(1) thin, (2) mushroom, (3) stubby, (4) filopodium")) 
+stargazer(adPFCthdialm, adPFCmushdialm, adPFCstubdialm, adPFCfilodialm, type = "text", title = "PFC AD Diameter Models",
+          notes= c("(1) thin, (2) mushroom, (3) stubby, (4) filopodium"))
+
+
+summary(lm(MMSE ~ Cohort + EC.Stubby.Length + PFC.Stubby.Diameter , data = AD.df))
+```
+
+## Kruskal and Dunn tests for all spine parameters
+```{r kruskal-dunn-post-hoc-tests, echo=FALSE, warning=FALSE, message=FALSE}
+kruskal.test(EC.Thin.Density ~ Cohort, data = cleaned_df)
+ec.thin.den.dunn <- FSA::dunnTest(EC.Thin.Density ~ Cohort, data = cleaned_df) # diff b/t AD-Ctrl
+ec.thin.den.dunn_pval <- ec.thin.den.dunn$res$P.adj
+
+
+kruskal.test(EC.Mushroom.Density ~ Cohort, data = cleaned_df)
+ec.mush.den.dunn <- FSA::dunnTest(EC.Mushroom.Density ~ Cohort, data=cleaned_df) # diff b/t AD-Ctrl
+ec.mush.den.dunn
+cleaned_df %>% dunn_test(EC.Mushroom.Density ~ Cohort, p.adjust.method = "holm") 
+
+kruskal.test(EC.Stubby.Density ~ Cohort, data = cleaned_df)
+ec.stub.den.dunn <- FSA::dunnTest(EC.Stubby.Density ~ Cohort, data=cleaned_df) # diff b/t AD-Ctrl
+ec.stub.den.dunn
+cleaned_df %>% dunn_test(EC.Stubby.Density ~ Cohort, p.adjust.method = "holm") 
+kruskal.test(EC.Filopodia.Density ~ Cohort, data = cleaned_df)
+ec.filo.den.dunn <- FSA::dunnTest(EC.Filopodia.Density ~ Cohort, data=cleaned_df) # ns - AD-Ctrl trending toward significance
+
+kruskal.test(PFC.Thin.Density ~ Cohort, data = cleaned_df)
+pfc.thin.den.dunn <- FSA::dunnTest(PFC.Thin.Density ~ Cohort, data=cleaned_df) # diff b/t AD-CAD
+kruskal.test(PFC.Mushroom.Density ~ Cohort, data = cleaned_df)
+pfc.mush.den.dunn <- FSA::dunnTest(PFC.Mushroom.Density ~ Cohort, data=cleaned_df) # diff b/t AD-CAD
+kruskal.test(PFC.Stubby.Density ~ Cohort, data = cleaned_df)
+pfc.stub.den.dunn <- FSA::dunnTest(PFC.Stubby.Density ~ Cohort, data=cleaned_df) # diff b/t AD-Ctrl - ns CAD-Ctrl trend toward sig
+kruskal.test(PFC.Filopodia.Density ~ Cohort, data = cleaned_df)
+pfc.filo.den.dunn <- FSA::dunnTest(PFC.Filopodia.Density ~ Cohort, data=cleaned_df) # ns all
+
+kruskal.test(EC.Thin.Length ~ Cohort, data = cleaned_df)
+ec.thin.len.dunn <- FSA::dunnTest(EC.Thin.Length ~ Cohort, data=cleaned_df) # ns all
+kruskal.test(EC.Mushroom.Length ~ Cohort, data = cleaned_df)
+ec.mush.len.dunn <- FSA::dunnTest(EC.Mushroom.Length ~ Cohort, data=cleaned_df) # ns all
+kruskal.test(EC.Stubby.Length ~ Cohort, data = cleaned_df)
+ec.stub.len.dunn <- FSA::dunnTest(EC.Stubby.Length ~ Cohort, data=cleaned_df) # ns all
+kruskal.test(EC.Filopodia.Length ~ Cohort, data = cleaned_df)
+ec.filo.len.dunn <- FSA::dunnTest(EC.Filopodia.Length ~ Cohort, data=cleaned_df) # ns all
+
+kruskal.test(PFC.Thin.Length ~ Cohort, data = cleaned_df)
+pfc.thin.len.dunn <- FSA::dunnTest(PFC.Thin.Length ~ Cohort, data=cleaned_df) # ns all
+kruskal.test(PFC.Mushroom.Length ~ Cohort, data = cleaned_df)
+pfc.mush.len.dunn <- FSA::dunnTest(PFC.Mushroom.Length ~ Cohort, data=cleaned_df) # ns all
+kruskal.test(PFC.Stubby.Length ~ Cohort, data = cleaned_df)
+pfc.stub.len.dunn <- FSA::dunnTest(PFC.Stubby.Length ~ Cohort, data=cleaned_df) # ns all
+kruskal.test(PFC.Filopodia.Length ~ Cohort, data = cleaned_df)
+pfc.filo.len.dunn <- FSA::dunnTest(PFC.Filopodia.Length ~ Cohort, data=cleaned_df) # ns all
+
+kruskal.test(EC.Thin.Diameter ~ Cohort, data = cleaned_df)
+ec.thin.dia.dunn <- FSA::dunnTest(EC.Thin.Diameter ~ Cohort, data = cleaned_df) # ns all
+kruskal.test(EC.Mushroom.Diameter ~ Cohort, data = cleaned_df)
+ec.mush.dia.dunn <- FSA::dunnTest(EC.Mushroom.Diameter ~ Cohort, data=cleaned_df) # ns all
+kruskal.test(EC.Stubby.Diameter ~ Cohort, data = cleaned_df)
+ec.stub.dia.dunn <- FSA::dunnTest(EC.Stubby.Diameter ~ Cohort, data=cleaned_df) # ns all
+kruskal.test(EC.Filopodia.Diameter ~ Cohort, data = cleaned_df)
+ec.filo.dia.dunn <- FSA::dunnTest(EC.Filopodia.Diameter ~ Cohort, data=cleaned_df) # ns all
+
+kruskal.test(PFC.Thin.Diameter ~ Cohort, data = cleaned_df)
+pfc.thin.dia.dunn <- FSA::dunnTest(PFC.Thin.Diameter ~ Cohort, data = cleaned_df) # ns all
+kruskal.test(PFC.Mushroom.Diameter ~ Cohort, data = cleaned_df)
+pfc.mush.dia.dunn <- FSA::dunnTest(PFC.Mushroom.Diameter ~ Cohort, data=cleaned_df) # ns all
+kruskal.test(PFC.Stubby.Diameter ~ Cohort, data = cleaned_df)
+pfc.stub.dia.dunn <- FSA::dunnTest(PFC.Stubby.Diameter ~ Cohort, data=cleaned_df) # ns all
+kruskal.test(PFC.Filopodia.Diameter ~ Cohort, data = cleaned_df)
+pfc.filo.dia.dunn <- FSA::dunnTest(PFC.Filopodia.Diameter ~ Cohort, data=cleaned_df) # ns all
+```
+
+
+# Boxplot Spine Parameters between Cohorts
+## EC Spine Density
+```{r EC-spine-density, echo=FALSE, warning=FALSE, collapse=TRUE, message=FALSE}
+# Edit from here
+x <- which(names(cleaned_df) == "Cohort") # name of grouping variable
+y <- which(names(cleaned_df) == "EC.Thin.Density" # names of variables to test
+| names(cleaned_df) == "EC.Mushroom.Density" |
+  names(cleaned_df) == "EC.Stubby.Density" |
+  names(cleaned_df) == "EC.Filopodia.Density")
+method1 <- "kruskal.test" # one of "anova" or "kruskal.test"
+method2 <- "wilcox.test" # one of "wilcox.test" or "t.test"
+columns_to_test <- c("EC.Thin.Density", "EC.Mushroom.Density", "EC.Stubby.Density", "EC.Filopodia.Density")
+results_list <- list()
+for (column in columns_to_test) {
+  formula_str <- paste(column, "~ Cohort")
+  formula_obj <- as.formula(formula_str)
+  result <- dunn_test(formula_obj, data = cleaned_df, p.adjust.method = "holm") 
+  result <- result %>% add_xy_position()
+  # result_list[[column]] <- result
+  # print(paste("Dunn's test for", column, ":"))
+  # print(result)
+  results_list = rbind(results_list, result)
+}
+# results_tibble <- as_tibble(results_list)
+# demospine_cors_df <- map(demospine_cors, ~data.frame(.x))
+
+# result_tibble <- tibble(Column = names(result_list), Dunn_Test_Result = result_list)
+# stat.test.dunn <- cleaned_df %>% dunn_test(EC.Thin.Density~Cohort, p.adjust.method = "holm") %>% add_xy_position()
+my_comparisons <- list(c("AD", "CAD"), c("AD", "Ctrl"), c("Ctrl", "CAD")) # comparisons for post-hoc tests
+# Edit until here
+
+# Edit at your own risk
+for (i in y) { #i=col,y=colnames, x=grp_var
+  for (j in x) {
+    p <- ggpubr::ggboxplot(cleaned_df,
+      x = colnames(cleaned_df[j]), y = colnames(cleaned_df[i]),
+      color = colnames(cleaned_df[j]),
+      legend = "none",
+      palette = "npg",
+      add = "jitter"
+    )
+    print(
+      p + ggpubr::stat_compare_means(aes(label = paste0(after_stat(method), ", p-value = ", after_stat(p.format))),
+        method = method1, label.y = max(cleaned_df[, i], na.rm = TRUE)
+      )
+            + ggpubr::stat_compare_means(comparisons = my_comparisons, method = method2, label = "p.format") + # remove if p-value of ANOVA or Kruskal-Wallis test >= alpha
+                labs(caption = "unadjusted pvalue")
+      # +   ggpubr::stat_pvalue_manual(results_list[seq(1, nrow(results_list), by = 3), ], hide.ns = FALSE, y.position = "y.position")
+    )
+  }
+}
+
+
+# # Example usage
+# # Assuming you have a data frame called "my_data" with columns "group", "col1", "col2", "col3" to test
+# group_col <- "Cohort"
+# test_cols <- c("PFC.Thin.Diameter", "PFC.Mushroom.Diameter", "PFC.Stubby.Diameter")
+# 
+# dunn_results <- cleaned_df %>%
+#   dunn_test(test_cols, group = "Cohort")
+# 
+# for (col in test_cols) {
+#   result <- cleaned_df %>% 
+#     group_by(Cohort) %>% 
+#     dunn_test(!!sym(col))
+#   
+#   p_values[[col]] <- result$p.adj
+# }
+
+```
+
+## PFC Spine Density
+```{r PFC-spine-density, echo=FALSE,warning=FALSE, collapse=TRUE, message=FALSE}
+# Edit from here
+x <- which(names(cleaned_df) == "Cohort") # name of grouping variable
+y <- which(names(cleaned_df) == "PFC.Thin.Density" # names of variables to test
+| names(cleaned_df) == "PFC.Mushroom.Density" |
+  names(cleaned_df) == "PFC.Stubby.Density" |
+  names(cleaned_df) == "PFC.Filopodia.Density")
+method1 <- "kruskal.test" # one of "anova" or "kruskal.test"
+method2 <- "wilcox.test" # one of "wilcox.test" or "t.test"
+my_comparisons <- list(c("Ctrl", "CAD"), c("AD", "CAD"), c("AD", "Ctrl")) # comparisons for post-hoc tests
+# Edit until here
+
+# Edit at your own risk
+for (i in y) {
+  for (j in x) {
+    p <- ggpubr::ggboxplot(cleaned_df,
+      x = colnames(cleaned_df[j]), y = colnames(cleaned_df[i]),
+      color = colnames(cleaned_df[j]),
+      legend = "none",
+      palette = "npg",
+      add = "jitter"
+    )
+    print(
+      p + ggpubr::stat_compare_means(aes(label = paste0(after_stat(method), ", p-value = ", after_stat(p.format))),
+        method = method1, label.y = max(cleaned_df[, i], na.rm = TRUE)
+      )
+      + ggpubr::stat_compare_means(comparisons = my_comparisons, method = method2, label = "p.format") + # remove if p-value of ANOVA or Kruskal-Wallis test >= alpha
+                labs(caption = "unadjusted pvalue")
+    )
+  }
+}
+```
+
+## EC Spine Length
+```{r EC-spine-length, echo=FALSE, warning=FALSE, collapse=TRUE, message=FALSE}
+# Edit from here
+x <- which(names(cleaned_df) == "Cohort") # name of grouping variable
+y <- which(names(cleaned_df) == "EC.Thin.Length" # names of variables to test
+| names(cleaned_df) == "EC.Mushroom.Length" |
+  names(cleaned_df) == "EC.Stubby.Length" |
+  names(cleaned_df) == "EC.Filopodia.Length"|  names(cleaned_df) == "Total.Avg.Length")
+method1 <- "kruskal.test" # one of "anova" or "kruskal.test"
+method2 <- "wilcox.test" # one of "wilcox.test" or "t.test"
+my_comparisons <- list(c("AD", "CAD"), c("AD", "Ctrl"), c("Ctrl", "CAD")) # comparisons for post-hoc tests
+# Edit until here
+
+# Edit at your own risk
+for (i in y) {
+  for (j in x) {
+    p <- ggpubr::ggboxplot(cleaned_df,
+      x = colnames(cleaned_df[j]), y = colnames(cleaned_df[i]),
+      color = colnames(cleaned_df[j]),
+      legend = "none",
+      palette = "npg",
+      add = "jitter"
+    )
+    print(
+      p + ggpubr::stat_compare_means(aes(label = paste0(after_stat(method), ", p-value = ", after_stat(p.format))),
+        method = method1, label.y = max(cleaned_df[, i], na.rm = TRUE)
+      )
+      + ggpubr::stat_compare_means(comparisons = my_comparisons, method = method2, label = "p.format") # remove if p-value of ANOVA or Kruskal-Wallis test >= alpha
+    )
+  }
+}
+```
+
+## PFC Spine length
+```{r PFC-spine-length, echo=FALSE, warning=FALSE, collapse=TRUE, message=FALSE}
+# Edit from here
+x <- which(names(cleaned_df) == "Cohort") # name of grouping variable
+y <- which(names(cleaned_df) == "PFC.Thin.Length" # names of variables to test
+| names(cleaned_df) == "PFC.Mushroom.Length" |
+  names(cleaned_df) == "PFC.Stubby.Length" |
+  names(cleaned_df) == "PFC.Filopodia.Length")
+method1 <- "kruskal.test" # one of "anova" or "kruskal.test"
+method2 <- "wilcox.test" # one of "wilcox.test" or "t.test"
+my_comparisons <- list(c("AD", "CAD"), c("AD", "Ctrl"), c("Ctrl", "CAD")) # comparisons for post-hoc tests
+# Edit until here
+
+# Edit at your own risk
+for (i in y) {
+  for (j in x) {
+    p <- ggpubr::ggboxplot(cleaned_df,
+      x = colnames(cleaned_df[j]), y = colnames(cleaned_df[i]),
+      color = colnames(cleaned_df[j]),
+      legend = "none",
+      palette = "npg",
+      add = "jitter"
+    )
+    print(
+      p + ggpubr::stat_compare_means(aes(label = paste0(after_stat(method), ", p-value = ", after_stat(p.format))),
+        method = method1, label.y = max(cleaned_df[, i], na.rm = TRUE)
+      )
+      + ggpubr::stat_compare_means(comparisons = my_comparisons, method = method2, label = "p.format") # remove if p-value of ANOVA or Kruskal-Wallis test >= alpha
+    )
+  }
+}
+```
+
+## EC Head Diameter
+```{r EC-head-diameter, echo=FALSE, warning=FALSE, collapse=TRUE, message=FALSE}
+# Edit from here
+x <- which(names(cleaned_df) == "Cohort") # name of grouping variable
+y <- which(names(cleaned_df) == "EC.Thin.Diameter" # names of variables to test
+| names(cleaned_df) == "EC.Mushroom.Diameter" |
+  names(cleaned_df) == "EC.Stubby.Diameter" |
+  names(cleaned_df) == "EC.Filopodia.Diameter")
+method1 <- "kruskal.test" # one of "anova" or "kruskal.test"
+method2 <- "wilcox.test" # one of "wilcox.test" or "t.test"
+my_comparisons <- list(c("AD", "CAD"), c("AD", "Ctrl"), c("Ctrl", "CAD")) # comparisons for post-hoc tests
+# Edit until here
+
+# Edit at your own risk
+for (i in y) {
+  for (j in x) {
+    p <- ggpubr::ggboxplot(cleaned_df,
+      x = colnames(cleaned_df[j]), y = colnames(cleaned_df[i]),
+      color = colnames(cleaned_df[j]),
+      legend = "none",
+      palette = "npg",
+      add = "jitter"
+    )
+    print(
+      p + ggpubr::stat_compare_means(aes(label = paste0(after_stat(method), ", p-value = ", after_stat(p.format))),
+        method = method1, label.y = max(cleaned_df[, i], na.rm = TRUE)
+      )
+      + ggpubr::stat_compare_means(comparisons = my_comparisons, method = method2, label = "p.format") + # remove if p-value of ANOVA or Kruskal-Wallis test >= alpha
+                labs(caption = "unadjusted pvalue")
+    )
+  }
+}
+```
+
+## PFC Head Diameter  
+```{r PFC-head-diameter, echo=FALSE, warning=FALSE, collapse=TRUE, message=FALSE}
+# Edit from here
+x <- which(names(cleaned_df) == "Cohort") # name of grouping variable
+y <- which(names(cleaned_df) == "PFC.Thin.Diameter" # names of variables to test
+| names(cleaned_df) == "PFC.Mushroom.Diameter" |
+  names(cleaned_df) == "PFC.Stubby.Diameter" |
+  names(cleaned_df) == "PFC.Filopodia.Diameter")
+method1 <- "kruskal.test" # one of "anova" or "kruskal.test"
+method2 <- "wilcox.test" # one of "wilcox.test" or "t.test"
+my_comparisons <- list(c("AD", "CAD"), c("AD", "Ctrl"), c("Ctrl", "CAD")) # comparisons for post-hoc tests
+
+for (i in y) {
+  for (j in x) {
+    p <- ggpubr::ggboxplot(cleaned_df,
+      x = colnames(cleaned_df[j]), y = colnames(cleaned_df[i]),
+      color = colnames(cleaned_df[j]),
+      legend = "none",
+      palette = "npg",
+      add = "jitter"
+    )
+    print(
+      p + ggpubr::stat_compare_means(aes(label = paste0(after_stat(method), ", p-value = ", after_stat(p.format))),
+        method = method1, label.y = max(cleaned_df[, i], na.rm = TRUE)
+      )
+      + ggpubr::stat_compare_means(comparisons = my_comparisons, method = method2, label = "p.format") + # remove if p-value of ANOVA or Kruskal-Wallis test >= alpha
+                labs(caption = "unadjusted pvalue")
+    )
+  }
+}
+```
+
+# Meeting with Jeremy - 7/19/23
+## Regional Ratio Scatterplots for Aging and AD
+```{r ad-and-aging-regional-ratio-scatterplots, echo=FALSE, warning=FALSE, collapse=TRUE, message=FALSE,fig.align='center', fig.height=12, fig.width=16}
+#####################################         Subset Aging Group (CAD/Ctrl)                        ################################
+# Subset Aging/AD groups ####
+aging_df <- cleaned_df %>%
+  dplyr::filter(Cohort == "CAD" | Cohort =="Ctrl") %>%
+  dplyr::select(demoVars, EC_PFC_spineParameters, -contains("Avg")) %>%
+  dplyr::mutate(
+    allele_risk1 = ifelse(grepl("(E2){1}", APOE_geno), -1,
+                          ifelse(grepl("(E3){1}", APOE_geno), 0,
+                                 ifelse(grepl("(E4){1}", APOE_geno), 1, NA))),
+    allele_risk2 = ifelse(grepl("(\\/2){1}", APOE_geno), -1,
+                          ifelse(grepl("(\\/3){1}", APOE_geno), 0,
+                                 ifelse(grepl("(\\/4)", APOE_geno), 1, NA))),
+    APOE_risk = allele_risk1 + allele_risk2) %>% # add columns to calculate APOE_risk
+  dplyr::mutate(Regional.Length.Ratio = EC.Total.Length/PFC.Total.Length,
+                Regional.Diameter.Ratio = EC.Head.Diameter/PFC.Head.Diameter,
+                Regional.LengthtoDiameter.Ratio = Regional.Length.Ratio/Regional.Diameter.Ratio) %>%
+  dplyr::filter(!is.na(Regional.LengthtoDiameter.Ratio))
+# Subset AD group
+AD_df <- cleaned_df %>%
+dplyr::filter(Cohort == "AD") %>%
+dplyr::select(demoVars, EC_PFC_spineParameters, -contains("Avg")) %>%
+dplyr::mutate(
+allele_risk1 = ifelse(grepl("(E2){1}", APOE_geno), -1,
+ifelse(grepl("(E3){1}", APOE_geno), 0,
+ifelse(grepl("(E4){1}", APOE_geno), 1, NA))),
+allele_risk2 = ifelse(grepl("(\\/2){1}", APOE_geno), -1,
+ifelse(grepl("(\\/3){1}", APOE_geno), 0,
+ifelse(grepl("(\\/4)", APOE_geno), 1, NA))),
+APOE_risk = allele_risk1 + allele_risk2) %>% # add columns to calculate APOE_risk
+dplyr::mutate(Regional.Length.Ratio = EC.Total.Length/PFC.Total.Length,
+Regional.Diameter.Ratio = EC.Head.Diameter/PFC.Head.Diameter,
+Regional.LengthtoDiameter.Ratio = Regional.Length.Ratio/Regional.Diameter.Ratio) %>%
+dplyr::filter(!is.na(Regional.LengthtoDiameter.Ratio))
+###################################################################################################################
+# Create list of variables to reference with models
+demoVars2 = c("MMSE", "APOE_risk", "PMI", "Braak_Stage", "ABC", "AgeDeath", "Race",  "Sex", "Frontal_NP", "Frontal_DP", "Frontal_NFT", "EC_NP", "EC_DP")
+ratioVars <- c("Regional.Length.Ratio", "Regional.Diameter.Ratio", "Regional.LengthtoDiameter.Ratio")
+library(WGCNA)
+library(qpdf)
+# Aging Regional Scatterplots #############
+# Aging - regional length ratio scatter plots
+# pdf("Aging.Regional.Length.Ratio.Scatterplots.pdf", width = 16, height = 12)
+par(mfrow=c(3,5)) # rows by columns
+par(mar=c(4,5,3,2)) # window margins
+plot_list <- list() # Create an empty list to store the plots
+# Loop through each variable in demoVars2
+for (var in demoVars2) {
+  p <- verboseScatterplot(
+    x = aging_df[, var],
+    y = aging_df[,"Regional.Length.Ratio"],
+    xlab = paste0(var),
+    ylab = "Regional.Length.Ratio (BA28/BA46)",
+    abline = TRUE,
+    cex.axis = 1.5,
+    cex.lab = 1.5,
+    cex = 1,
+    col = "darkgreen",
+    pch = 19
+  )
+  plot_list[[var]] <- p
+}
+# Print all the plots stored in the plot_list
+# for (var in demoVars2) { 
+#   print(plot_list[[var]])
+# }
+# dev.off()
+# Aging - regional diameter ratio scatter plots
+# pdf("Aging.Regional.Diameter.Ratio.Scatterplots.pdf", width = 16, height = 12)
+par(mfrow=c(3,5)) # rows by columns
+par(mar=c(4,5,3,2)) # window margins
+plot_list <- list() # Create an empty list to store the plots
+# Loop through each variable in demoVars2
+for (var in demoVars2) { 
+  p <- verboseScatterplot(
+    x = aging_df[, var],
+    y = aging_df[,"Regional.Diameter.Ratio"],
+    xlab = paste0(var),
+    ylab = "Regional.Diameter.Ratio (BA28/BA46)",
+    abline = TRUE,
+    cex.axis = 1.5,
+    cex.lab = 1.5,
+    cex = 1,
+    col = "darkgreen",
+    pch = 19
+  )
+  plot_list[[var]] <- p
+}
+# Print all the plots stored in the plot_list
+# for (var in demoVars2) { 
+#   print(plot_list[[var]])
+# }
+# dev.off()
+# Aging - regional length/diameter ratio scatter plots
+# pdf("Aging.Regional.LengthtoDiameter.Ratio.Scatterplots.pdf", width = 16, height = 12)
+par(mfrow=c(3,5)) # rows by columns
+par(mar=c(4,5,3,2)) # window margins
+plot_list <- list() # Create an empty list to store the plots
+# Loop through each variable in demoVars2
+for (var in demoVars2) { 
+  p <- verboseScatterplot(
+    x = aging_df[, var],
+    y = aging_df[,"Regional.LengthtoDiameter.Ratio"],
+    xlab = paste0(var),
+    ylab = "Regional.LengthtoDiameter.Ratio (BA28/BA46)",
+    abline = TRUE,
+    cex.axis = 1.5,
+    cex.lab = 1.5,
+    cex = 1,
+    col = "darkgreen",
+    pch = 19
+  )
+  plot_list[[var]] <- p
+}
+# Print all the plots stored in the plot_list
+# for (var in demoVars2) { 
+#   print(plot_list[[var]])
+# }
+# dev.off()
+# uncomment to combine into 1 pdf
+# qpdf::pdf_combine(input = c("Aging.Regional.Length.Ratio.Scatterplots.pdf", "Aging.Regional.Diameter.Ratio.Scatterplots.pdf", "Aging.Regional.LengthtoDiameter.Ratio.Scatterplots.pdf"), output = "Aging.Regional.Ratio.Scatterplots.pdf")
+
+# AD Regional Scatterplots #########################################################
+# AD - regional length ratio scatter plots
+# pdf("AD.Regional.Length.Ratio.Scatterplots.pdf", width = 16, height = 12)
+par(mfrow=c(3,5)) # rows by columns
+par(mar=c(4,5,3,2)) # window margins
+plot_list <- list() # Create an empty list to store the plots
+# Loop through each variable in demoVars2
+for (var in demoVars2) {
+  p <- WGCNA::verboseScatterplot(
+    x = AD_df[, var],
+    y = AD_df[,"Regional.Length.Ratio"],
+    xlab = paste0(var),
+    ylab = "Regional.Length.Ratio (BA28/BA46)",
+    abline = TRUE,
+    cex.axis = 1.5,
+    cex.lab = 1.5,
+    cex = 1,
+    col = "darkgreen",
+    pch = 19
+  )
+  plot_list[[var]] <- p
+}
+mtext(side=1, line=2, at=10.3, adj=1, cex=1.1, "CERAD and EC_NFT excluded due identical values")
+# Print all the plots stored in the plot_list
+# for (var in demoVars2) { 
+#   print(plot_list[[var]])
+# }
+# dev.off()
+# AD - regional diameter ratio scatter plots
+# pdf("AD.Regional.Diameter.Ratio.Scatterplots.pdf", width = 16, height = 12)
+par(mfrow=c(3,5)) # rows by columns
+par(mar=c(4,5,3,2)) # window margins
+plot_list <- list() # Create an empty list to store the plots
+# Loop through each variable in demoVars2
+for (var in demoVars2) { 
+  p <- verboseScatterplot(
+    x = AD_df[, var],
+    y = AD_df[,"Regional.Diameter.Ratio"],
+    xlab = paste0(var),
+    ylab = "Regional.Diameter.Ratio (BA28/BA46)",
+    abline = TRUE,
+    cex.axis = 1.5,
+    cex.lab = 1.5,
+    cex = 1,
+    col = "darkgreen",
+    pch = 19
+  )
+  plot_list[[var]] <- p
+}
+mtext(side=1, line=2, at=10.3, adj=1, cex=1.1, "CERAD and EC_NFT excluded due identical values")
+# Print all the plots stored in the plot_list
+# for (var in demoVars2) { 
+#   print(plot_list[[var]])
+# }
+# dev.off()
+# AD - regional length/diameter ratio scatter plots
+# pdf("AD.Regional.LengthtoDiameter.Ratio.Scatterplots.pdf", width = 16, height = 12)
+par(mfrow=c(3,5)) # rows by columns
+par(mar=c(4,5,3,2)) # window margins
+plot_list <- list() # Create an empty list to store the plots
+# Loop through each variable in demoVars2
+for (var in demoVars2) { 
+  p <- verboseScatterplot(
+    x = AD_df[, var],
+    y = AD_df[,"Regional.LengthtoDiameter.Ratio"],
+    xlab = paste0(var),
+    ylab = "Regional.LengthtoDiameter.Ratio (BA28/BA46)",
+    abline = TRUE,
+    cex.axis = 1.5,
+    cex.lab = 1.5,
+    cex = 1,
+    col = "darkgreen",
+    pch = 19
+  )
+  plot_list[[var]] <- p
+}
+mtext(side=1, line=2, at=10.3, adj=1, cex=1.1, "CERAD and EC_NFT excluded due identical values")
+# title("plots", outer=FALSE, line = .9, adj = 1)
+# Print all the plots stored in the plot_list
+# for (var in demoVars2) {
+#   print(plot_list[[var]])
+# }
+# dev.off()
+# uncomment to combine into 1 pdf
+# qpdf::pdf_combine(input = c("AD.Regional.Length.Ratio.Scatterplots.pdf", "AD.Regional.Diameter.Ratio.Scatterplots.pdf", "AD.Regional.LengthtoDiameter.Ratio.Scatterplots.pdf"), output = "AD.Regional.Ratio.Scatterplots.pdf")
+
+
+# Longer way to generate regional scatterplots with ggplot
+#########################################################################################################################
+# ############################## Aging Regional Ratio Plots
+# # Plot Regional length ratio vs demographics
+# aging_df %>%
+# tidyr::pivot_longer(
+# cols = demoVars2,
+# names_to = 'DemographicVar',
+# values_to = 'DemoValue') %>%
+# dplyr::select(CaseNumber, DemographicVar, DemoValue, Regional.Length.Ratio) %>%
+# tidyr::pivot_longer(
+# cols = Regional.Length.Ratio,
+# names_to = "SpineParameter",
+# values_to = "Measurement") %>%
+# dplyr::filter(!is.na(Measurement)) %>%
+# ggplot(aes(DemoValue, Measurement)) +
+# geom_point() +
+# geom_smooth(method = "lm", se=FALSE) +
+# facet_wrap(~DemographicVar, scales = "free") +
+#   ylab("Regional Length Ratio (EC/PFC)")+
+# labs(title = "Demographics vs. Regional Length (Aging group)") +
+# ggpubr::stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "~")), color = "black") +
+#     ggpubr::stat_regline_equation(label.x.npc = 'center', label.y.npc = 'top')
+# # Plot Regional Diameter ratio vs demographics
+# aging_df %>%
+# tidyr::pivot_longer(
+# cols = demoVars2,
+# names_to = 'DemographicVar',
+# values_to = 'DemoValue') %>%
+# dplyr::select(CaseNumber, DemographicVar, DemoValue, Regional.Diameter.Ratio) %>%
+# tidyr::pivot_longer(
+# cols = Regional.Diameter.Ratio,
+# names_to = "SpineParameter",
+# values_to = "Measurement") %>%
+# dplyr::filter(!is.na(Measurement)) %>%
+# ggplot(aes(DemoValue, Measurement)) +
+# geom_point() +
+# geom_smooth(method = "lm", se=FALSE) +
+# facet_wrap(~DemographicVar, scales = "free") +
+#   ylab("Regional Diameter Ratio (EC/PFC)")+
+# labs(title = "Demographics vs. Regional Diameter Ratio (Aging group)") +
+# ggpubr::stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "~")), color = "black") +
+#     ggpubr::stat_regline_equation(label.x.npc = 'center', label.y.npc = 'top')
+# # Plot Regional Length/Diameter ratio vs demographics
+# aging_df %>%
+# tidyr::pivot_longer(
+# cols = demoVars2,
+# names_to = 'DemographicVar',
+# values_to = 'DemoValue') %>%
+# dplyr::select(CaseNumber, DemographicVar, DemoValue, Regional.LengthtoDiameter.Ratio) %>%
+# tidyr::pivot_longer(
+# cols = Regional.LengthtoDiameter.Ratio,
+# names_to = "SpineParameter",
+# values_to = "Measurement") %>%
+# dplyr::filter(!is.na(Measurement)) %>%
+# ggplot(aes(DemoValue, Measurement)) +
+# geom_point() +
+# geom_smooth(method = "lm", se=FALSE) +
+# facet_wrap(~DemographicVar, scales = "free") +
+#   ylab("Regional Length Diameter Ratio (Length/Diameter)")+
+# labs(title = "Demographics vs. Regional Length:Diameter (Aging group)") +
+# ggpubr::stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "~")), color = "black") +
+#     ggpubr::stat_regline_equation(label.x.npc = 'center', label.y.npc = 'top')
+# 
+# ############################## AD Regional Ratio Plots
+# # Plot Regional length ratio vs demographics
+# AD_df %>%
+# tidyr::pivot_longer(
+# cols = demoVars2,
+# names_to = 'DemographicVar',
+# values_to = 'DemoValue') %>%
+# dplyr::select(CaseNumber, DemographicVar, DemoValue, Regional.Length.Ratio) %>%
+# tidyr::pivot_longer(
+# cols = Regional.Length.Ratio,
+# names_to = "SpineParameter",
+# values_to = "Measurement") %>%
+# dplyr::filter(!is.na(Measurement)) %>%
+# ggplot(aes(DemoValue, Measurement)) +
+# geom_point() +
+# geom_smooth(method = "lm", se=FALSE) +
+# facet_wrap(~DemographicVar, scales = "free") +
+#   ylab("Regional Length Ratio (EC/PFC)")+
+# labs(title = "Demographics vs. Regional Length (AD group)") +
+# ggpubr::stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "~")), color = "black") +
+#     ggpubr::stat_regline_equation(label.x.npc = 'center', label.y.npc = 'top')
+# # Plot Regional Diameter ratio vs demographics
+# AD_df %>%
+# tidyr::pivot_longer(
+# cols = demoVars2,
+# names_to = 'DemographicVar',
+# values_to = 'DemoValue') %>%
+# dplyr::select(CaseNumber, DemographicVar, DemoValue, Regional.Diameter.Ratio) %>%
+# tidyr::pivot_longer(
+# cols = Regional.Diameter.Ratio,
+# names_to = "SpineParameter",
+# values_to = "Measurement") %>%
+# dplyr::filter(!is.na(Measurement)) %>%
+# ggplot(aes(DemoValue, Measurement)) +
+# geom_point() +
+# geom_smooth(method = "lm", se=FALSE) +
+# facet_wrap(~DemographicVar, scales = "free") +
+#   ylab("Regional Diameter Ratio (EC/PFC)")+
+# labs(title = "Demographics vs. Regional Diameter Ratio (AD group)") +
+# ggpubr::stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "~")), color = "black") +
+#     ggpubr::stat_regline_equation(label.x.npc = 'center', label.y.npc = 'top')
+# # Plot Regional Length/Diameter ratio vs demographics
+# AD_df %>%
+# tidyr::pivot_longer(
+# cols = demoVars2,
+# names_to = 'DemographicVar',
+# values_to = 'DemoValue') %>%
+# dplyr::select(CaseNumber, DemographicVar, DemoValue, Regional.LengthtoDiameter.Ratio) %>%
+# tidyr::pivot_longer(
+# cols = Regional.LengthtoDiameter.Ratio,
+# names_to = "SpineParameter",
+# values_to = "Measurement") %>%
+# dplyr::filter(!is.na(Measurement)) %>%
+# ggplot(aes(DemoValue, Measurement)) +
+# geom_point() +
+# geom_smooth(method = "lm", se=FALSE) +
+# facet_wrap(~DemographicVar, scales = "free") +
+#   ylab("Regional Length Diameter Ratio (Length/Diameter)")+
+# labs(title = "Demographics vs. Regional Length:Diameter (AD group)") +
+# ggpubr::stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "~")), color = "black") +
+#     ggpubr::stat_regline_equation(label.x.npc = 'center', label.y.npc = 'top')
+# 
+```
+
+## Regression models controling for age
+```{r}
+# Function to create a linear model and extract relevant information
+create_linear_model <- function(dependent_var, independent_vars) {
+  # Combine the dependent and independent variables into a formula
+  formula <- as.formula(paste(dependent_var, "~", paste(independent_vars, collapse = "+")))
+  
+  # Fit the linear model
+  model <- lm(formula, data=cleaned_df)
+  
+  # Extract model information
+  model_summary <- summary(model)
+  coef_data <- coef(model_summary)
+  r_squared <- summary(model)$r.squared
+  
+  # Create a dataframe to store the results
+  result_df <- data.frame(
+    Variables = paste(independent_vars, collapse = ", "),
+    Estimate = coef_data[, 1],
+    PValue = coef_data[, 4],
+    RSquared = r_squared
+  )
+  
+  return(result_df)
+}
+dependent_var <- "Regional.Length.Ratio"
+independent_vars_vector <-  c("MMSE", "APOE_risk", "PMI", "Braak_Stage", "ABC", "AgeDeath", "Race",  "Sex", "Frontal_NP", "Frontal_DP", "Frontal_NFT", "EC_NP", "EC_DP")
+create_linear_model <- function(data, dependent_var, independent_vars) {
+  # Combine the dependent and independent variables into a formula
+  formula <- as.formula(paste(dependent_var, "~", paste(independent_vars, collapse = "+")))
+  
+  # Fit the linear model
+  model <- lm(formula, data = data)
+  
+  # Extract model information
+  model_summary <- summary(model)
+  coef_data <- coef(model_summary)
+  r_squared <- summary(model)$r.squared
+  
+  # Create a dataframe to store the results
+  result_df <- data.frame(
+    Variable = names(coef_data),
+    Estimate = coef_data[, 1],
+    PValue = coef_data[, 4],
+    RSquared = r_squared
+  )
+  
+  return(result_df)
+}
+# Call the function to create linear models and store the results in a list
+results_list <- lapply(independent_vars_vector, function(var) {
+  create_linear_model(data = aging_df, dependent_var, c(var))
+})
+
+# Combine the results into a single dataframe
+result_dataframe <- bind_rows(results_list)
+
+# Print the result
+print(result_dataframe)
+# Function to create a scatter plot and linear regression model
+
+scatter_plot_with_regression(cleaned_df$EC.Total.Length, cleaned_df$PFC.Total.Length)
+```
+
+## test effect size
+```{r}
+# take U stat from wilcox man-whitney test, divide U by max value whi
+# rescaling gives probabilty that observation from 1 group will be higher than an observation from the other group 
+# effect size = AOC
+# 
+cleaned_df %>% 
+  cohens_d(
+  EC.Total.Length ~ Cohort, var.equal = TRUE, 
+  hedges.correction = TRUE
+  )
+
+```
+
+
+TODO: # Scatter plots of demographics vs. path data
+
+
+<!-- # IGNORE BELOW -->
+<!-- ```{r} -->
+
+<!-- # Edit at your own risk -->
+<!-- create_boxplot_with_pvalues <- function(data, outcome_variable, group_variable) { -->
+<!--   # Perform Dunn test -->
+<!--   dunn_result <- cleaned_df %>% -->
+<!--     dunn_test(formula=eval(parse(text=glue("{outcome_variable}~{group_variable}"))), p.adjust.method = "holm", detailed = F) -->
+<!--   dunn_result <- dunn_result %>% add_xy_position(x = {group_variable}) -->
+<!--   # Extract p-values -->
+<!-- } -->
+
+<!-- pvalues<-create_boxplot_with_pvalues(cleaned_df, "EC.Thin.Density", "Cohort") -->
+
+<!-- # Function to perform Dunn test on multiple columns -->
+<!-- perform_dunn_test <- function(data, group_col, test_cols) { -->
+<!--   library(dunn.test) -->
+<!--   results <- list() -->
+
+<!--   for (col in test_cols) { -->
+<!--     result <- dunn.test(data[[col]], data[[group_col]], method = "Holm") %>%  -->
+
+<!--     results[[col]] <- result$P.adjusted -->
+<!--   } -->
+
+<!--   return(results) -->
+<!-- } -->
+<!-- p_values_col1 <- perform_dunn_test(cleaned_df, group_col, test_cols)   -->
+
+<!-- # Example usage -->
+<!-- # Assuming you have a data frame called "my_data" with columns "group", "col1", "col2", "col3" to test -->
+<!-- group_col <- "Cohort" -->
+<!-- test_cols <- c("PFC.Thin.Diameter", "PFC.Mushroom.Diameter", "PFC.Stubby.Diameter") -->
+
+<!-- # Access p-values for a specific column -->
+<!-- p_values_col1 <- dunn_results$col1 -->
+<!-- p_values_col2 <- dunn_results$col2 -->
+<!-- p_values_col3 <- dunn_results$col3 -->
+
+<!-- perform_dunn_test <- function(data, group_col, test_cols) { -->
+<!--     results <- list() -->
+
+<!--   for (col in test_cols) { -->
+<!--     result <- data %>% -->
+<!--       group_by({{ group_col }}) %>% -->
+<!--       dunn_test({{ col }}, {{ group_col }}) %>% -->
+<!--       pull(p.adj) -->
+
+<!--     results[[col]] <- result -->
+<!--   } -->
+
+<!--   return(results) -->
+<!-- } -->
+
+<!-- # Function to perform Dunn test on multiple columns and add p-values to ggboxplot -->
+<!-- perform_dunn_test <- function(data, group_col, test_cols) { -->
+<!--   results <- list() -->
+
+<!--   for (col in test_cols) { -->
+<!--     result <- data %>% -->
+<!--       group_by({{ group_col }}) %>% -->
+<!--       dunn_test({{ col }}, {{ group_col }}) %>% -->
+<!--       ungroup() -->
+
+<!--     p_values <- result$p.adj -->
+<!--     group_values <- unique(data[[group_col]]) -->
+
+<!--     positions <- data.frame(x = group_values, y = max(data[[col]]) + 2, p_values = p_values) -->
+<!--     results[[col]] <- positions -->
+<!--   } -->
+
+<!--   return(results) -->
+<!-- } -->
+
+<!-- # Example usage -->
+<!-- # Assuming you have a data frame called "my_data" with columns "group", "col1", "col2", "col3" to test -->
+<!-- group_col <- "Cohort" -->
+<!-- test_cols <- c("PFC.Thin.Diameter", "PFC.Mushroom.Diameter", "PFC.Stubby.Diameter") -->
+
+<!-- # Call the function -->
+<!-- dunn_results <- perform_dunn_test(cleaned_df, group_col, test_cols) -->
+
+
+<!-- # Display the ggboxplot -->
+<!-- print(p) -->
+
+<!-- make boxplot in ggplot -> add kruskal wallis value --  add dunn test pvalues with significance bars  -->
+<!-- cleaned_df %>%  -->
+<!--   dunn_test() -->
+<!-- p <- ggpubr::ggboxplot(cleaned_df, -->
+<!--       x = colnames(cleaned_df[j]), y = colnames(cleaned_df[i]), -->
+<!--       color = colnames(cleaned_df[j]), -->
+<!--       legend = "none", -->
+<!--       palette = "npg", -->
+<!--       add = "jitter") -->
+<!-- p + ggpubr::stat_compare_means(aes(label = paste0(after_stat(method), ", p-value = ", after_stat(p.format))), -->
+<!--         method = method1, label.y = max(cleaned_df[, i], na.rm = TRUE)) -->
+<!--     stat_pvalue_manual(stat.test, label = "p.adj.signif", tip.length = 0.01) -->
+
+
+<!-- # # Technically works -------------- -->
+<!-- # run_dunn_test <- function(data, outcome_columns, group_column) { -->
+<!-- #   results <- list() -->
+<!-- #    -->
+<!-- #   for (outcome_col in outcome_columns) { -->
+<!-- #     dunn_result <- FSA::dunnTest(data[[outcome_col]], data[[group_column]]) -->
+<!-- #     p_values <- dunn_result$res$P.adj -->
+<!-- #      -->
+<!-- #     result <- data.frame( -->
+<!-- #       Outcome_Column = outcome_col, -->
+<!-- #       Group_Column = group_column, -->
+<!-- #       P_Value = p_values -->
+<!-- #     ) -->
+<!-- #      -->
+<!-- #     results[[outcome_col]] <- result -->
+<!-- #   } -->
+<!-- #    -->
+<!-- #   return(results) -->
+<!-- # } -->
+<!-- # output <- run_dunn_test(data = cleaned_df, outcome_columns = c("EC.Thin.Density", "EC.Mushroom.Density"), group_column = "Cohort") -->
+<!-- # #-------------- -->
+<!-- #  -->
+<!-- #  -->
+<!-- #  -->
+<!-- # # ggpubr::ggboxplot(cleaned_df,x ="Cohort", y="EC.Thin.Density") +  -->
+<!-- # #   ggpubr::stat_pvalue_manual( -->
+<!-- # #    ec.thin.den.dunn.manual,  -->
+<!-- # #     y.position = 35, step.increase = 0.1, -->
+<!-- # #     label = "p.adj") -->
+
+<!-- #  -->
+<!-- # ec.thin.den.dunn <- FSA::dunnTest(EC.Thin.Density ~ Cohort, data = cleaned_df) # diff b/t AD-Ctrl -->
+<!-- # ec.thin.den.dunn[[2]] -->
+<!-- # things_we_want <- rstatix::add_significance(data = as.data.frame(ec.thin.den.dunn[[2]], output.cols = "pval.signif")) -->
+<!-- # things_we_want -->
+<!-- # #---------------------------- -->
+<!-- # stat.test.dunn <- cleaned_df %>% dunn_test(EC.Thin.Density ~ Cohort, p.adjust.method = "holm")  -->
+<!-- # stat.test.dunn <- stat.test.dunn %>% add_xy_position(x = "Cohort") -->
+<!-- # stat.test.dunn -->
+<!-- #  -->
+<!-- # ggpubr::ggboxplot(cleaned_df, x = "Cohort", y = "EC.Thin.Density", fill = "Cohort") + -->
+<!-- #   ggpubr::stat_pvalue_manual(stat.test.dunn, hide.ns = FALSE) -->
+<!-- #  -->
+<!-- #  -->
+<!-- # # Outputs values HOORAY! ---------- -->
+<!-- # create_boxplot_with_pvalues <- function(data, outcome_variable, group_variable) { -->
+<!-- #   # Perform Dunn test -->
+<!-- #   dunn_result <- cleaned_df %>% -->
+<!-- #     dunn_test(formula=eval(parse(text=glue("{outcome_variable}~{group_variable}"))), p.adjust.method = "holm", detailed = F) -->
+<!-- #   dunn_result <- dunn_result %>% add_xy_position(x = {group_variable}) -->
+<!-- #   # Extract p-values -->
+<!-- # } -->
+<!-- # pvalues<-create_boxplot_with_pvalues(cleaned_df, "EC.Thin.Density", "Cohort") -->
+
+<!-- #  -->
+<!-- #  -->
+<!-- # # DOESNT WORK -->
+<!-- # create_boxplot_with_pvalues <- function(data, outcome_variable, group_variable) { -->
+<!-- #   # Perform Dunn test -->
+<!-- #   dunn_result <- cleaned_df %>%  -->
+<!-- #     dunn_test(formula=eval(parse(text=glue("{outcome_variable}~{group_variable}"))), p.adjust.method = "holm", detailed = F) -->
+<!-- #   dunn_result <- dunn_result %>% add_xy_position(x = {group_variable}) -->
+<!-- #   # Extract p-values -->
+<!-- #   p_values <- dunn_result$p.adj -->
+<!-- #   # Create boxplot -->
+<!-- #   p <- ggplot(data, aes(x = !!sym(group_variable), y = !!sym(outcome_variable), fill = !!sym(group_variable))) + -->
+<!-- #     geom_boxplot() + -->
+<!-- #     geom_jitter(width = 0.2, alpha = 0.7) + -->
+<!-- #     labs(x = group_variable, y = outcome_variable) -->
+<!-- #   # Add p-values -->
+<!-- #   p + ggpubr::stat_pvalue_manual(data=dunn_result, comparisons = my_comparisons,  -->
+<!-- #                       label = "p.adj", step_increase = 0.05) -->
+<!-- # } -->
+<!-- # create_boxplot_with_pvalues(cleaned_df, EC.Thin.Density, Cohort) -->
+<!-- #  -->
+<!-- # # Loop over multiple columns and create boxplots for each -->
+<!-- # columns_to_plot <- c("EC.Thin.Density", "EC.Mushroom.Density") -->
+<!-- # for (col in columns_to_plot) { -->
+<!-- #   create_boxplot_with_pvalues(my_data, col, "Cohort") -->
+<!-- # } -->
+
+<!-- ``` -->

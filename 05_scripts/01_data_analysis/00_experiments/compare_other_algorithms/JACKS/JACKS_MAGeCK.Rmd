@@ -1,0 +1,561 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r}
+library(dplyr)
+library(tidyr)
+
+```
+Purpose: Created to compare the output/results from MAGeCK to those obtained from JACKS. Stopped working on it b/c JACKS measures gRNA efficacy while MAGeCK is focused on gRNA abundance. While possible to compare the algorithm's performance, you'd need to look into a common outcome metric.
+
+# Import data
+```{r import stmn2 MAGeCK sgrna and gene summaries and jacks stmn2 results}
+stmn2_mageck_sgrna_df <- read.table("/Users/Claire/Library/CloudStorage/Box-Box/MSTP Research Rotations/Summer_2024_Might_Ward_Lab/CRISPRi_screenfiles/CRISPRi_alg_optimization/data_processed/rra-High-Low-STMN2.sgrna_summary.txt", sep = "\t", header = TRUE)
+stmn2_mageck_gene_df <- read.table("/Users/Claire/Library/CloudStorage/Box-Box/MSTP Research Rotations/Summer_2024_Might_Ward_Lab/CRISPRi_screenfiles/CRISPRi_alg_optimization/data_processed/rra-High-Low-STMN2.gene_summary.txt", sep = "\t", header = TRUE)
+
+stmn2_jacks_sgrna_df <- read.table("/Users/Claire/Downloads/JACKS-master/jacks_2018_paper/results_jacks/stmn2_jacks_results_3_samples/stmn_2_jacks_results_grna_JACKS_results.txt", sep = "\t", header = TRUE)
+stmn2_jacks_sgrna_lfc <- read.table("/Users/Claire/Downloads/JACKS-master/jacks_2018_paper/results_jacks/stmn2_jacks_results_3_samples/stmn_2_jacks_results_logfoldchange_means.txt", sep = "\t", header = TRUE)
+stmn2_jacks_gene_df <- read.table("/Users/Claire/Downloads/JACKS-master/jacks_2018_paper/results_jacks/stmn2_jacks_results_3_samples/stmn_2_jacks_results_gene_JACKS_results.txt", sep = "\t", header = TRUE)
+stmn2_jacks_gene_sd <- read.table("/Users/Claire/Downloads/JACKS-master/jacks_2018_paper/results_jacks/stmn2_jacks_results_3_samples/stmn_2_jacks_results_gene_std_JACKS_results.txt", sep = "\t", header = TRUE)
+stmn2_jacks_gene_pval <- read.table("/Users/Claire/Downloads/JACKS-master/jacks_2018_paper/results_jacks/stmn2_jacks_results_3_samples/stmn_2_jacks_results_gene_pval_JACKS_results.txt", sep = "\t", header = TRUE)
+
+
+# Merge JACKS sgRNA efficacy file with sgRNA LFC 
+# sgrna_merged <- dplyr::full_join(stmn2_jacks_sgrna_df, stmn2_jacks_sgrna_lfc)
+
+# Merge JACKS gene pval and sd files with JACKS gene results file
+gene_merged <- full_join(stmn2_jacks_gene_pval, stmn2_jacks_gene_sd, by = "Gene", suffix = c("_pval", "_sd"))
+stmn2_jacks_gene_df <- full_join(stmn2_jacks_gene_df, gene_merged)
+```
+
+# Are the counts in the MAGeCK output really the raw sgRNA counts?
+
+# Test normalization methods with various datasets
+```{r}
+stmn2_mageck_sgrna_df
+neg_ctrl_stmn2_sgrna_sep <- stmn2_mageck_sgrna_df %>%
+  dplyr::select(sgrna, Gene, control_count, treatment_count) %>% 
+  tidyr::separate(control_count, into = c("low1_rep1", "low2_rep2", "low3_rep3"), sep = "/") %>% 
+  tidyr::separate(treatment_count, into = c("high1_rep1", "high2_rep2", "high3_rep3"), sep = "/") %>% 
+  tidyr::pivot_longer(cols = starts_with(start_strings),
+               names_to = "bin",
+               values_to = "normalized_read_count")
+```
+
+
+### JACKS gene results (18746) have more obs than MAGeCK (18327) - figure out why JACKS have 419 more rows
+```{r}
+genes_not_in_stmn2_jacks_gene_df %>% 
+  dplyr::filter(!Gene %in% stmn2_mageck_gene_df$id)
+
+# Function to compare two vectors and print non-matching values
+compare_vectors <- function(vector1, vector2) {
+  # Ensure the inputs are vectors
+  if (!is.vector(vector1) | !is.vector(vector2)) {
+    stop("Both inputs need to be vectors")
+  }
+  
+  # Find values in vector1 not in vector2
+  not_in_vector2 <- setdiff(vector1, vector2)
+  
+  # Find values in vector2 not in vector1
+  not_in_vector1 <- setdiff(vector2, vector1)
+  
+  # Print out the values that don't match
+  if (length(not_in_vector2) > 0) {
+    cat("Values in vector1 not in vector2:\n")
+    print(not_in_vector2)
+  } else {
+    cat("All values in vector1 are present in vector2\n")
+  }
+  
+  if (length(not_in_vector1) > 0) {
+    cat("Values in vector2 not in vector1:\n")
+    print(not_in_vector1)
+  } else {
+    cat("All values in vector2 are present in vector1\n")
+  }
+}
+
+# set vector1 = JACKS gene output and vector2 = MAGeCK gene output
+stmn_jacks <- stmn2_jacks_gene_df$Gene
+stmn_mageck <- stmn2_mageck_gene_df$id
+
+# Compare the vectors
+compare_vectors(stmn_jacks, stmn_mageck)
+```
+
+# Rank plot
+```{r MAGeCK rank plot of STMN2 screen data, echo=FALSE, warning=FALSE, include=FALSE}
+# from rankplot.R file
+library(tidyverse)
+library(ggrepel)
+rra.High.Low.STMN2.sgrna_summary <- read.delim("/Users/Claire/Library/CloudStorage/Box-Box/MSTP Research Rotations/Summer_2024_Might_Ward_Lab/CRISPRi_screenfiles/rra-High-Low-STMN2.sgrna_summary.txt")
+
+# arrange rows by values in LFC column
+rra.High.Low.STMN2.sgrna_summary <- rra.High.Low.STMN2.sgrna_summary %>%
+  arrange(LFC)
+rra.High.Low.STMN2.sgrna_summary <-rra.High.Low.STMN2.sgrna_summary %>% 
+  mutate(
+    zscore = scale(LFC), # scale calculates mean and sd of a vector then scales each element by subtracting mean and dividing by sd
+    row = as.numeric(rownames(rra.High.Low.STMN2.sgrna_summary)) # create column to specify row number
+  )
+
+## Generate Rank Plot of all STMN2 sgRNA data ----
+rra.High.Low.STMN2.sgrna_summary %>%
+  ggplot(aes(row, zscore, label=Gene))+
+  geom_point(data = rra.High.Low.STMN2.sgrna_summary %>% 
+               filter(Gene!="negative_control"),
+             color="black",
+             alpha=0.7) +
+  geom_point(data = rra.High.Low.STMN2.sgrna_summary %>% 
+               filter(Gene=="negative_control"),
+             color="grey",
+             alpha=0.2) +
+  geom_point(data = rra.High.Low.STMN2.sgrna_summary %>% 
+               filter(Gene=="TARDBP"|
+                        Gene=="STMN2"|
+                        Gene=="RANBP1"),
+             color="purple",
+             alpha=0.7) +
+  #geom_point(data = both %>% 
+  #             filter((control_mean>=3000|
+  #                       treat_mean>=3000),
+  #                    Gene%in%transcription$Gene),
+  #           color="blue",
+  #           alpha=0.7)+
+  #geom_point(data = both %>% 
+  #             filter((control_mean>=3000|
+  #                       treat_mean>=3000),
+  #                    Gene%in%translation$Gene),
+  #           color="green",
+#           alpha=0.7)+
+  geom_label_repel(data = rra.High.Low.STMN2.sgrna_summary %>% 
+                     filter(Gene=="TARDBP"|
+                              Gene=="STMN2"|
+                              Gene=="RANBP1"),
+                   fill="purple",
+                   box.padding = 0.5,
+                   segment.color="black",
+                   alpha=0.6,
+                   max.overlaps = Inf) +
+  labs(
+    title = "STMN2-mscarlet rank plot",
+    caption = 
+      "Grey: NT guides
+    Purple: Genes of interest") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+
+## Filter STMN2 points with means greater than 3000 ----
+rra.High.Low.STMN2.sgrna_summary_filtered <- rra.High.Low.STMN2.sgrna_summary %>%
+  filter(control_mean>=3000|
+           treat_mean>=3000) %>% 
+  arrange(LFC)
+
+rra.High.Low.STMN2.sgrna_summary_filtered <- rra.High.Low.STMN2.sgrna_summary_filtered %>% 
+  mutate(
+    zscore = scale(LFC),
+    row = as.numeric(rownames(rra.High.Low.STMN2.sgrna_summary_filtered))
+  )
+
+## Generate Rank Plot of STMN2 sgRNA data with a mean read count greater than or equal to 3000 ----
+rra.High.Low.STMN2.sgrna_summary_filtered %>%
+  ggplot(aes(row, zscore, label=Gene)) +
+  geom_point(data = rra.High.Low.STMN2.sgrna_summary_filtered %>% 
+               filter(Gene!="negative_control"),
+             color="black",
+             alpha=0.7) +
+  geom_point(data = rra.High.Low.STMN2.sgrna_summary_filtered %>% 
+               filter(Gene=="negative_control"),
+             color="grey",
+             alpha=0.2) +
+  geom_point(data = rra.High.Low.STMN2.sgrna_summary_filtered %>% 
+               filter(Gene=="TARDBP"|
+                        Gene=="STMN2"
+                      #  Gene=="RANBP1"
+               ),
+             color="purple",
+             alpha=0.7) +
+  #geom_point(data = rra.High.Low.STMN2.sgrna_summary_filtered %>% 
+  #             filter(Gene%in%mitochondrion$id
+  #             ),
+  #           color="red",
+  #           alpha=0.7)+
+  #geom_point(data = both %>% 
+  #             filter((control_mean>=3000|
+  #                       treat_mean>=3000),
+  #                    Gene%in%transcription$Gene),
+  #           color="blue",
+  #           alpha=0.7)+
+#geom_point(data = both %>% 
+#             filter((control_mean>=3000|
+#                       treat_mean>=3000),
+#                    Gene%in%translation$Gene),
+#           color="green",
+#           alpha=0.7)+
+geom_label_repel(data = rra.High.Low.STMN2.sgrna_summary_filtered %>% 
+                   filter(zscore < -5
+                          # Gene=="RANBP1"
+                          ),
+                 box.padding = 0.5,
+                 segment.color="black",
+                 alpha=0.6,
+                 max.overlaps = Inf) +
+  labs(
+    title = "STMN2-mScarlet rank plot filtered at 3000",
+    caption = 
+      "Grey: NT guides
+    Purple: Genes of interest"
+    ) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+## Rank stats ------
+rra.High.Low.STMN2.sgrna_summary_filtered %>% 
+  filter(Gene!="negative_control") %>% 
+  summary
+
+# mean and SD of negative control/non-targeting guides
+rra.High.Low.STMN2.sgrna_summary_filtered %>% 
+  filter(Gene=="negative_control") %>% 
+  summarise(
+    sd = sd(zscore),
+    mean = mean(zscore)
+  )
+
+rra.High.Low.STMN2.sgrna_summary_filtered %>% 
+  filter(Gene=="negative_control") %>% 
+  summarise(
+    sd = sd(zscore),
+    mean = mean(zscore)
+  )
+
+# QUESTION: ask JH what this is for? ---------
+up = -0.1179674+ 4*0.5991452
+down = -0.1179674- 4*0.5991452
+
+rra.High.Low.STMN2.sgrna_summary_filtered %>% 
+  filter(Gene!="negative_control",
+         zscore > up |
+           zscore < down) %>% 
+  summarise(n=n())
+
+
+```
+
+
+# Look at differences between non-targeting guides *within* each screen
+```{r}
+# Import STMN2 screen data
+stmn2_mageck_sgrna_df <- read.table("/Users/Claire/Library/CloudStorage/Box-Box/MSTP Research Rotations/Summer_2024_Might_Ward_Lab/CRISPRi_screenfiles/CRISPRi_alg_optimization/data_processed/rra-High-Low-STMN2.sgrna_summary.txt", sep = "\t", header = TRUE)
+stmn2_mageck_gene_df <- read.table("/Users/Claire/Library/CloudStorage/Box-Box/MSTP Research Rotations/Summer_2024_Might_Ward_Lab/CRISPRi_screenfiles/CRISPRi_alg_optimization/data_processed/rra-High-Low-STMN2.gene_summary.txt", sep = "\t", header = TRUE)
+
+# Import TDP-43 screen data
+tdp_mageck_sgrna_df <- read.table("/Users/Claire/Library/CloudStorage/Box-Box/MSTP Research Rotations/Summer_2024_Might_Ward_Lab/CRISPRi_screenfiles/CRISPRi_alg_optimization/tdp_i3N.sgrna_summary.txt", sep = "\t", header = TRUE)
+
+# sgRNA hdr key: 
+#   control_count: Normalized read counts in ctrl samples;
+#   treatment_count: Normalized read counts in tx samples;
+#   control_mean: Median read counts in ctrl samples;
+#   treat_mean: Median read counts in tx samples
+#QUESTION: how does the ctrl_count col differ from ctrl_mean col since 
+
+# Plot null distribution of normalized non-targeting guides ----
+# plot_density <- function(data, title) {
+#   data %>%
+#     mutate(log2_read_counts = log2(read_counts)) %>%
+#     ggplot(aes(x = log2_read_counts, color = bin)) +
+#     geom_density() +
+#     labs(title = title, x = "Mean read counts (log2 scaled)", y = "Density") +
+#     theme_minimal()
+# }
+
+# Create start_strings to select both high and low cols
+start_strings <- c("high", "low")
+# Separate the normalized read count cols
+neg_ctrl_stmn2_sgrna_sep <- stmn2_mageck_sgrna_df %>%
+  dplyr::select(sgrna, Gene, control_count, treatment_count) %>% 
+  tidyr::separate(control_count, into = c("low1_rep1", "low2_rep2", "low3_rep3"), sep = "/") %>% 
+  tidyr::separate(treatment_count, into = c("high1_rep1", "high2_rep2", "high3_rep3"), sep = "/") %>% 
+  tidyr::pivot_longer(cols = starts_with(start_strings),
+               names_to = "bin",
+               values_to = "normalized_read_count") %>% 
+  dplyr::filter(Gene=="negative_control")
+
+# Create plots high/low FACS bins of normalized-log2 scaled sgRNA read counts
+stmn2_high_neg_ctrl_sgrna_counts <- neg_ctrl_stmn2_sgrna_sep %>%
+  dplyr::mutate(normalized_read_count = as.numeric(normalized_read_count)) %>% 
+  dplyr::filter(startsWith(bin, "high")) %>% 
+    mutate(log2_read_counts = log2(normalized_read_count)) %>%
+    ggplot(aes(x = normalized_read_count, color = bin, fill = bin)) +
+    geom_density(alpha = 0.1) + 
+    labs(title = "Density Plot of Normalized Read Counts (STMN2 Screen)",
+       x = "Normalized read counts (log2 scaled)",
+       y = "Density") +
+    theme_minimal()
+stmn2_low_neg_ctrl_sgrna_counts <- neg_ctrl_stmn2_sgrna_sep %>%
+  dplyr::mutate(normalized_read_count = as.numeric(normalized_read_count)) %>% 
+  dplyr::filter(startsWith(bin, "low")) %>% 
+    mutate(log2_read_counts = log2(normalized_read_count)) %>%
+    ggplot(aes(x = normalized_read_count, color = bin, fill = bin)) +
+    geom_density(alpha = 0.1) + 
+    labs(title = "Density Plot of Normalized Read Counts (STMN2 Screen)",
+       x = "Normalized read counts (log2 scaled)",
+       y = "Density") +
+    theme_minimal()
+# Arrange plots side by side
+gridExtra::grid.arrange(stmn2_high_neg_ctrl_sgrna_counts, stmn2_low_neg_ctrl_sgrna_counts, ncol = 2)
+
+neg_ctrl_stmn2_sgrna_sep %>%
+  dplyr::mutate(normalized_read_count = as.numeric(normalized_read_count)) %>% 
+    mutate(log2_read_counts = log2(normalized_read_count)) %>%
+    ggplot(aes(x = normalized_read_count, color = bin, fill = bin)) +
+    geom_density(alpha = 0.1) + 
+    labs(title = "Density Plot of Normalized Read Counts (STMN2 Screen)",
+       x = "Normalized read counts (log2 scaled)",
+       y = "Density") +
+    theme_minimal()
+
+# Group by 'bin' and calculate the median of 'normalized_read_count'
+neg_ctrl_stmn2_sgrna_sep %>%
+  group_by(bin) %>%
+  dplyr::mutate(normalized_read_count = as.numeric(normalized_read_count)) %>% 
+  dplyr::summarize(median_normalized_read_count = median(normalized_read_count, na.rm = TRUE))
+
+
+# # Add a new column to categorize bins into "high" and "low"
+# filtered_data <- neg_ctrl_stmn2_sgrna_sep %>%
+#   dplyr::mutate(normalized_read_count = as.numeric(normalized_read_count)) %>% 
+#   mutate(bin_category = ifelse(startsWith(bin, "high"), "high", "low"))
+
+# TODO ----
+  # plot hdr_mean col for neg ctrl sgRNAs from stmn2 screen - only generates 1 line though since it represents the geometric mean
+  
+  # compare plots of the hdr_mean cols of neg_ctrls from the stmn2 screen to the tdp screen
+  # 
+
+# tdp_sgrna_sep <- tdp_mageck_sgrna_df %>%
+#   dplyr::select(sgrna, Gene, control_count, treatment_count) %>% 
+#   separate(control_count, into = c("low1_rep1", "low2_rep2", "low3_rep3"), sep = "/") %>% 
+#   separate(treatment_count, into = c("high1_rep1", "high2_rep2", "high3_rep3"), sep = "/") %>% 
+#   pivot_longer(cols = starts_with(start_strings),
+#                names_to = "bin",
+#                values_to = "normalized_read_count")
+
+  # TODO: consider different methods of normalization ----
+stmn2_mageck_sgrna_df %>% 
+  dplyr::filter(Gene=="negative_control")  # only select negative controls
+
+```
+# Try with signed log and cube root
+```{r}
+neg_ctrl_stmn2_sgrna_sep %>%
+  dplyr::mutate(normalized_read_count = as.numeric(normalized_read_count)) %>% 
+  mutate(signed_log_read_count = sign(normalized_read_count) * log(abs(normalized_read_count) + 1)) %>% 
+    ggplot(aes(x = signed_log_read_count, color = bin, fill = bin)) +
+    geom_density(alpha = 0.1) + 
+    labs(title = "Density Plot of Signed Log Transformed Normalized Read Counts (STMN2 Screen)",
+       x = "Signed Log Transformed Normalized Read Counts",
+       y = "Density") +
+    theme_minimal()
+
+neg_ctrl_stmn2_sgrna_sep %>%
+  dplyr::mutate(normalized_read_count = as.numeric(normalized_read_count)) %>% 
+  mutate(cube_root_read_count = sign(normalized_read_count) * abs(normalized_read_count)^(1/3)) %>% 
+    ggplot(aes(x = cube_root_read_count, color = bin, fill = bin)) +
+    geom_density(alpha = 0.1) + 
+    labs(title = "Density Plot of Cube Root Transformed Normalized Read Counts (STMN2 Screen)",
+       x = "Cube Root Transformed Normalized Read Counts",
+       y = "Density") +
+    theme_minimal()
+
+
+```
+
+
+# Visualize Null Distribution of Non-targeting guides
+```{r}
+# Separate the normalized read count cols
+neg_ctrl_tdp_sgrna <- tdp_mageck_sgrna_df %>%
+  dplyr::select(sgrna, Gene, low = control_count, high = treatment_count) %>% 
+  # tidyr::separate(control_count, into = c("low1_rep1", "low2_rep2", "low3_rep3"), sep = "/") %>% 
+  # tidyr::separate(treatment_count, into = c("high1_rep1", "high2_rep2", "high3_rep3"), sep = "/") %>% 
+  tidyr::pivot_longer(cols = starts_with(start_strings),
+               names_to = "bin",
+               values_to = "normalized_read_count") %>% 
+  dplyr::filter(Gene=="negative_control")
+
+# Create plots high/low FACS bins of normalized-log2 scaled sgRNA read counts
+neg_ctrl_tdp_log2 <- neg_ctrl_tdp_sgrna %>%
+  dplyr::mutate(normalized_read_count = as.numeric(normalized_read_count)) %>% 
+    mutate(log2_read_counts = log2(normalized_read_count)) %>%
+    ggplot(aes(x = normalized_read_count, color = bin, fill = bin)) +
+    geom_density(alpha = 0.1) + 
+    labs(title = "Density Plot of Normalized Read Counts (TDP Screen)",
+       x = "Normalized read counts (log2 scaled)",
+       y = "Density") +
+    theme_minimal()
+
+
+
+neg_ctrl_tdp_sgrna %>%
+  dplyr::mutate(normalized_read_count = as.numeric(normalized_read_count)) %>% 
+  mutate(signed_log_read_count = sign(normalized_read_count) * log(abs(normalized_read_count) + 1)) %>% 
+    ggplot(aes(x = signed_log_read_count, color = bin, fill = bin)) +
+    geom_density(alpha = 0.1) + 
+    labs(title = "Density Plot of Signed Log Transformed Normalized Read Counts (TDP Screen)",
+       x = "Signed Log Transformed Normalized Read Counts",
+       y = "Density") +
+    theme_minimal()
+
+neg_ctrl_tdp_sgrna %>%
+  dplyr::mutate(normalized_read_count = as.numeric(normalized_read_count)) %>% 
+  mutate(cube_root_read_count = sign(normalized_read_count) * abs(normalized_read_count)^(1/3)) %>% 
+    ggplot(aes(x = cube_root_read_count, color = bin, fill = bin)) +
+    geom_density(alpha = 0.1) + 
+    labs(title = "Density Plot of Cube Root Transformed Normalized Read Counts (TDP Screen)",
+       x = "Cube Root Transformed Normalized Read Counts",
+       y = "Density") +
+    theme_minimal()
+
+```
+
+```{r Try replacing MAGeCK with Bayesian Modeling}
+# Data Normalization ----
+library(dplyr)
+library(rstan)
+# Example data normalization using Bayesian hierarchical modeling
+# Assuming `data` is a dataframe with read counts
+
+# Define the Bayesian model for normalization
+stan_model <- "
+data {
+  int<lower=0> N; // number of observations
+  int<lower=0> J; // number of groups (e.g., sgRNAs)
+  int<lower=1,upper=J> group[N]; // group indicator
+  real y[N]; // read counts
+}
+parameters {
+  real<lower=0> sigma; // standard deviation
+  real mu[J]; // group means
+}
+model {
+  y ~ normal(mu[group], sigma);
+}
+"
+stan_data <- list(N = nrow(data), J = length(unique(data$sgRNA)), group = as.numeric(factor(data$sgRNA)), y = data$read_count)
+fit <- stan(model_code = stan_model, data = stan_data)
+
+# Variance Estimation ----
+# Extract posterior estimates
+posterior <- extract(fit)
+mu_estimates <- apply(posterior$mu, 2, mean)
+sigma_estimate <- mean(posterior$sigma)
+
+# Significance Testing ----
+# Compute Bayesian p-values or credible intervals
+# Assuming `test_data` and `control_data` are subsets of the original data
+p_values <- sapply(1:length(mu_estimates), function(i) {
+  mu_diff <- mu_estimates[i] - mean(control_data$read_count)
+  p_value <- 2 * min(mean(mu_diff > 0), mean(mu_diff < 0))
+  return(p_value)
+})
+
+# Rank Aggregation ----
+# Rank genes by their posterior probabilities
+gene_ranks <- data.frame(gene = unique(data$gene), p_value = p_values)
+gene_ranks <- gene_ranks %>% arrange(p_value)
+
+# FDR ----
+# Adjust p-values for multiple testing using Bayesian FDR methods
+library(qvalue)
+q <- qvalue(p = gene_ranks$p_value)
+gene_ranks <- gene_ranks %>% mutate(q_value = q$qvalues)
+
+```
+
+```{r}
+# Load necessary libraries
+library(dplyr)
+library(rstan)
+
+# Simulate example data
+set.seed(123)
+data <- tibble::tibble(
+  sgRNA = rep(paste0("sgRNA_", 1:10), each = 6),
+  gene = rep(paste0("Gene_", 1:10), each = 6),
+  condition = rep(c("control", "treatment"), each = 3, times = 10),
+  read_count = c(
+    rpois(30, lambda = 100),  # control
+    rpois(30, lambda = 120)   # treatment
+  )
+)
+
+print(head(data))
+# Define the Bayesian model for normalization
+stan_model <- "
+data {
+  int<lower=0> N; // number of observations
+  int<lower=0> J; // number of sgRNAs
+  int<lower=1,upper=J> group[N]; // sgRNA indicator
+  real y[N]; // read counts
+}
+parameters {
+  real<lower=0> sigma; // standard deviation
+  real mu[J]; // sgRNA means
+}
+model {
+  y ~ normal(mu[group], sigma);
+}
+"
+
+# Prepare data for Stan
+stan_data <- list(
+  N = nrow(data),
+  J = length(unique(data$sgRNA)),
+  group = as.numeric(factor(data$sgRNA)),
+  y = log(data$read_count + 1)  # log-transform read counts
+)
+
+# Fit the model using Stan
+fit <- stan(model_code = stan_model, data = stan_data, iter = 1000, chains = 4)
+
+# Extract posterior estimates
+posterior <- extract(fit)
+mu_estimates <- apply(posterior$mu, 2, mean)
+sigma_estimate <- mean(posterior$sigma)
+
+
+# Compute differences between treatment and control
+control_means <- mu_estimates[1:10]
+treatment_means <- mu_estimates[11:20]
+
+p_values <- sapply(1:10, function(i) {
+  diff <- treatment_means[i] - control_means[i]
+  p_value <- 2 * min(mean(diff > 0), mean(diff < 0))
+  return(p_value)
+})
+
+# Create a data frame of results
+results <- tibble::tibble(
+  gene = unique(data$gene),
+  control_mean = control_means,
+  treatment_mean = treatment_means,
+  p_value = p_values
+)
+
+print(results)
+# Adjust p-values using the Benjamini-Hochberg method
+results <- results %>%
+  arrange(p_value) %>%
+  mutate(q_value = p.adjust(p_value, method = "BH"))
+
+print(results)
+
+```
+

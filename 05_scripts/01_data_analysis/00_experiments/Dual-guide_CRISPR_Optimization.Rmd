@@ -1,0 +1,962 @@
+---
+title: "Dual-guide CRISPR Optimization"
+output:
+  html_document:
+    df_print: paged
+  html_notebook:
+    fig_width: 8
+    fig_height: 6.5
+    fig_caption: true
+---
+# Setup
+```{r setup, include=FALSE}
+library(dplyr)
+library(ggplot2)
+library(qvalue)
+library(corrplot)
+library(gridExtra)
+```
+
+# Import MAGeCK summary files
+```{r, echo=FALSE}
+# Test best normalization method
+
+# Import various screen data results ####
+# Import STMN2 screen data
+# 
+sgrna_stmn2 <- read.delim("/Users/Claire/Library/CloudStorage/Box-Box/MSTP Research Rotations/Summer_2024_Might_Ward_Lab/CRISPRi_screenfiles/CRISPRi_alg_optimization/data_processed/rra-High-Low-STMN2.sgrna_summary.txt", sep = "\t", header = TRUE)
+gene_stmn2 <- read.table("/Users/Claire/Library/CloudStorage/Box-Box/MSTP Research Rotations/Summer_2024_Might_Ward_Lab/CRISPRi_screenfiles/CRISPRi_alg_optimization/data_processed/rra-High-Low-STMN2.gene_summary.txt", sep = "\t", header = TRUE)
+
+# Raw counts data
+raw_counts <- read.delim("/Users/Claire/Library/CloudStorage/Box-Box/MSTP Research Rotations/Summer_2024_Might_Ward_Lab/files_from_others/counts/all.count.txt", sep = "\t", header = TRUE)
+
+# Import TDP-43 screen data
+sgrna_tdp <- read.table("/Users/Claire/Library/CloudStorage/Box-Box/MSTP Research Rotations/Summer_2024_Might_Ward_Lab/CRISPRi_screenfiles/CRISPRi_alg_optimization/data_processed/tdp_i3N.sgrna_summary.txt", sep = "\t", header = TRUE)
+# Import other screen data
+sgrna_ipsc <- read.delim("/Users/Claire/Library/CloudStorage/Box-Box/MSTP Research Rotations/Summer_2024_Might_Ward_Lab/CRISPRi_screenfiles/CRISPRi_alg_optimization/data_processed/CP6277_rra-ipsc.sgrna_summary.txt", sep = "\t", header = TRUE)
+sgrna_i3N <- read.delim("/Users/Claire/Library/CloudStorage/Box-Box/MSTP Research Rotations/Summer_2024_Might_Ward_Lab/CRISPRi_screenfiles/CRISPRi_alg_optimization/data_processed/CP6277_rra-i3N.sgrna_summary.txt", sep = "\t", header = TRUE)
+
+# sgRNA hdr key: 
+#   control_count: Normalized read counts in ctrl samples;
+#   treatment_count: Normalized read counts in tx samples;
+#   control_mean: Median read counts in ctrl samples;
+#   treat_mean: Median read counts in tx samples
+
+# Separate out all countrol_count and treatment_count columns as they may contain multiple values from replicate samples
+# Create start_strings to select both high and low cols
+start_strings <- c("high", "low")
+# Separate the normalized read count cols
+neg_ctrl_sgrna_stmn2 <- sgrna_stmn2 %>%
+  dplyr::select(sgrna, Gene, control_count, treatment_count) %>% 
+  tidyr::separate(control_count, into = c("low1_rep1", "low2_rep2", "low3_rep3"), sep = "/") %>% 
+  tidyr::separate(treatment_count, into = c("high1_rep1", "high2_rep2", "high3_rep3"), sep = "/") %>% 
+  tidyr::pivot_longer(cols = starts_with(start_strings),
+                      names_to = "bin",
+                      values_to = "normalized_read_count") %>% 
+  dplyr::filter(Gene=="negative_control") %>% 
+    mutate(normalized_read_count = as.numeric(normalized_read_count)) %>%
+    mutate(log2_read_counts = log2(normalized_read_count),
+           signed_log_read_count = sign(normalized_read_count) * log(abs(normalized_read_count) + 1),
+           cube_root_read_count = sign(normalized_read_count) * abs(normalized_read_count)^(1/3))
+# TDP dataframe
+neg_ctrl_sgrna_tdp <- sgrna_tdp %>%
+  dplyr::select(sgrna, Gene, low = control_count, high = treatment_count) %>% 
+  tidyr::pivot_longer(cols = starts_with(start_strings),
+                      names_to = "bin",
+                      values_to = "normalized_read_count") %>% 
+  dplyr::filter(Gene=="negative_control") %>% 
+    mutate(normalized_read_count = as.numeric(normalized_read_count)) %>%
+    mutate(log2_read_counts = log2(normalized_read_count),
+           signed_log_read_count = sign(normalized_read_count) * log(abs(normalized_read_count) + 1),
+           cube_root_read_count = sign(normalized_read_count) * abs(normalized_read_count)^(1/3))
+# i3N dataframe
+neg_ctrl_sgrna_i3N <- sgrna_i3N %>%
+  dplyr::select(sgrna, Gene, control_count, treatment_count) %>% 
+  tidyr::separate(control_count, into = c("low1_rep1", "low2_rep2"), sep = "/") %>% 
+  tidyr::separate(treatment_count, into = c("high1_rep1", "high2_rep2"), sep = "/") %>% 
+  tidyr::pivot_longer(cols = starts_with(start_strings),
+                      names_to = "bin",
+                      values_to = "normalized_read_count") %>% 
+  dplyr::filter(Gene=="negative_control") %>% 
+    mutate(normalized_read_count = as.numeric(normalized_read_count)) %>%
+    mutate(log2_read_counts = log2(normalized_read_count),
+           signed_log_read_count = sign(normalized_read_count) * log(abs(normalized_read_count) + 1),
+           cube_root_read_count = sign(normalized_read_count) * abs(normalized_read_count)^(1/3))
+# iPSC dataframe
+neg_ctrl_sgrna_ipsc <- sgrna_ipsc %>%
+  dplyr::select(sgrna, Gene, control_count, treatment_count) %>% 
+  tidyr::separate(control_count, into = c("low1_rep1", "low2_rep2"), sep = "/") %>% 
+  tidyr::separate(treatment_count, into = c("high1_rep1", "high2_rep2"), sep = "/") %>% 
+  tidyr::pivot_longer(cols = starts_with(start_strings),
+                      names_to = "bin",
+                      values_to = "normalized_read_count") %>% 
+  dplyr::filter(Gene=="negative_control") %>% 
+    mutate(normalized_read_count = as.numeric(normalized_read_count)) %>%
+    mutate(log2_read_counts = log2(normalized_read_count),
+           signed_log_read_count = sign(normalized_read_count) * log(abs(normalized_read_count) + 1),
+           cube_root_read_count = sign(normalized_read_count) * abs(normalized_read_count)^(1/3))
+```
+
+# Dealing with Raw Read Counts
+```{r Transform raw counts, echo=FALSE}
+# TODO: translate count norm functions into R
+start_strings = c('Low', 'High')
+
+# Raw counts
+neg_ctrl_raw_counts_long <- raw_counts %>%
+  tidyr::pivot_longer(cols = starts_with(start_strings),
+                      names_to = "bin",
+                      values_to = "normalized_read_count") %>% 
+  dplyr::filter(Gene=="negative_control") %>%
+    mutate(log2_read_counts = log2(normalized_read_count),
+           signed_log_read_count = sign(normalized_read_count) * log(abs(normalized_read_count) + 1),
+           cube_root_read_count = sign(normalized_read_count) * abs(normalized_read_count)^(1/3))
+
+neg_ctrl_raw_counts_wide <- raw_counts %>%
+  dplyr::filter(Gene=="negative_control")
+
+```
+
+# Try recreating MAGeCK CountNorm function
+```{r CountNorm setup, echo=FALSE}
+# Equivalent to NormMsgs class in Python
+NormMsgs <- function() {
+  list(haswarning = FALSE)
+}
+
+mageckcount_gettotalnormfactor <- function(ctable) {
+  # Number of samples
+  n <- length(ctable[[1]])
+  # Number of sgRNAs
+  m <- length(ctable)
+  
+  # Calculate the sum for each sample
+  sumsample <- rep(0, n)
+  for (v in ctable) {
+    sumsample <- sumsample + unlist(v)
+  }
+  
+  # Calculate the average sample sum and normalization factors
+  avgsample <- sum(sumsample) / n
+  samplefactor <- avgsample / sumsample
+  
+  return(samplefactor)
+}
+
+mageckcount_getzerocounts <- function(ctable) {
+  # Number of samples
+  n <- length(ctable[[1]])
+  # Number of sgRNAs
+  m <- length(ctable)
+  
+  zerofactor <- rep(0, n)
+  for (ni in 1:n) {
+    nzr <- sapply(ctable, function(v) if (v[ni] == 0) 1 else 0)
+    zerofactor[ni] <- sum(nzr)
+  }
+  
+  return(zerofactor)
+}
+
+# mageckcount_getmediannormfactor <- function(ctable) {
+#   # Number of samples
+#   n <- length(ctable[[1]])
+#   # Number of sgRNAs
+#   m <- length(ctable)
+#   
+#   # Calculate the geometric mean for each sgRNA
+#   meanval <- sapply(ctable, function(v) {
+#     if (sum(v) > 0) {
+#       exp(sum(log(v + 1)) / n)
+#     } else {
+#       NA
+#     }
+#   })
+#   
+#   # Replace non-positive geometric means with 1
+#   meanval <- sapply(meanval, function(v) ifelse(is.na(v) || v <= 0, 1, v))
+#   
+#   medianfactor <- rep(0, n)
+#   for (ni in 1:n) {
+#     meanfactor <- sapply(ctable, function(v) v[ni] / meanval[names(ctable) == names(v)])
+#     xfactor <- median(meanfactor, na.rm = TRUE)
+#     
+#     if (xfactor > 0.0) {
+#       medianfactor[ni] <- 1.0 / xfactor
+#     }
+#   }
+#   
+#   return(medianfactor)
+# }
+
+mageckcount_getmediannormfactor <- function(ctable) {
+  # Number of samples
+  n <- length(ctable[[1]])
+  # Number of sgRNAs
+  m <- length(ctable)
+  
+  # Calculate the geometric mean for each sgRNA
+  meanval <- sapply(ctable, function(v) {
+    if (sum(v) > 0) {
+      exp(sum(log(v + 1)) / n)
+    } else {
+      NA
+    }
+  })
+  
+  # Replace non-positive geometric means with 1
+  meanval <- sapply(meanval, function(v) ifelse(is.na(v) || v <= 0, 1, v))
+  
+  medianfactor <- rep(0, n)
+  for (ni in 1:n) {
+    meanfactor <- sapply(ctable, function(v) v[ni] / meanval[names(ctable) == names(v)])
+    
+    # Ensure that the meanfactor is unlisted to avoid the atomic error
+    meanfactor <- unlist(meanfactor)
+    
+    # Remove NA values from meanfactor before sorting
+    meanfactor <- meanfactor[!is.na(meanfactor)]
+    
+    # Sort and get the median value only if meanfactor has elements
+    if (length(meanfactor) > 0) {
+      xfactor <- sort(meanfactor)[ceiling(length(meanfactor) / 2)]
+    } else {
+      xfactor <- 0
+    }
+    
+    if (xfactor > 0.0) {
+      medianfactor[ni] <- 1.0 / xfactor
+    }
+  }
+  
+  return(medianfactor)
+}
+
+
+normalizeCounts <- function(ctable, sgdict = NULL, method = 'median', returnfactor = FALSE,  reversefactor = FALSE, controlsgfile = NULL, norm_msgs = NULL) {
+  
+  # Initialize norm_msgs if not provided
+  if (is.null(norm_msgs)) {
+    norm_msgs <- list(haswarning = FALSE)
+  }
+  
+  # If ctable is empty, return a copy
+  if (length(ctable) == 0) {
+    return(ctable)
+  }
+  
+  # Calculate the number of samples and sgRNAs
+  n <- length(ctable[[1]])  # Number of samples
+  m <- length(ctable)  # Number of sgRNAs
+  
+  # Handle control normalization
+  if (method == 'control') {
+    if (is.null(controlsgfile)) {
+      stop("Error: a list of control sgRNAs should be specified when using control normalization.")
+    }
+    
+    controlsglist <- readLines(controlsgfile)
+    message("Loaded ", length(controlsglist), " control sgRNAs from ", controlsgfile)
+    
+    ctable_nm <- ctable[controlsglist]
+    
+    if (length(ctable_nm) == 0 && !is.null(sgdict)) {
+      ctable_nm <- ctable[sapply(names(ctable), function(k) sgdict[[k]][1] %in% controlsglist)]
+    }
+    
+    message("control sgRNAs for normalization: ", length(ctable_nm))
+    
+    if (length(ctable_nm) == 0) {
+      stop("Error: cannot find records of control sgRNAs in the read count table.")
+    }
+    
+    method <- 'median'
+  } else {
+    ctable_nm <- ctable
+  }
+  
+  # Calculate the total normalization factor
+  samplefactor <- mageckcount_gettotalnormfactor(ctable_nm)
+  message("Initial (total) size factor: ", paste(samplefactor, collapse = " "))
+  
+  nzeros <- mageckcount_getzerocounts(ctable_nm)
+  
+  if (method == 'median') {
+    medianfactor <- mageckcount_getmediannormfactor(ctable_nm)
+    usetotalnorm <- FALSE
+    
+    for (ni in 1:n) {
+      if (medianfactor[ni] == 0.0) {
+        warning("Sample ", ni, " has zero median count, so median normalization is not possible. Switching to total read count normalization.")
+        norm_msgs$haswarning <- TRUE
+        usetotalnorm <- TRUE
+      }
+      
+      zerof <- nzeros[ni] / length(ctable_nm)
+      if (zerof > 0.45) {
+        warning("Sample ", ni, " has too many zero-count sgRNAs (", zerof, "), and median normalization is unstable. Switching to total read count normalization.")
+        norm_msgs$haswarning <- TRUE
+        usetotalnorm <- TRUE
+      } else if (zerof > 0.3) {
+        warning("Sample ", ni, " has too many zero-count sgRNAs (", zerof, "), and median normalization may be unstable. Consider switching to total read count normalization.")
+        norm_msgs$haswarning <- TRUE
+      }
+    }
+    
+    if (!usetotalnorm) {
+      samplefactor <- medianfactor
+      message("Median factor: ", paste(samplefactor, collapse = " "))
+    }
+  } else if (method == 'none') {
+    samplefactor <- rep(1.0, n)
+  }
+  
+  message("Final size factor: ", paste(samplefactor, collapse = " "))
+  
+  warn_norm <- any(samplefactor < 0.2 | samplefactor > 5)
+  if (warn_norm) {
+    warning("Some samples have unusually small or large normalization factors (<0.2 or >5). Please double-check the normalization process.")
+    norm_msgs$haswarning <- TRUE
+  }
+  
+  if (returnfactor) {
+    if (reversefactor) {
+      return(1.0 / samplefactor)
+    } else {
+      return(samplefactor)
+    }
+  }
+  
+  # Normalize the table
+  ntable <- lapply(ctable, function(v) samplefactor * v)
+  return(ntable)
+}
+
+
+```
+
+## Try creating new bayesian inference framework
+```{r bayes, echo=FALSE, include=FALSE}
+# Low will be control grp
+C_counts <- raw_counts %>% 
+  dplyr::select(Low_1, Low_2, Low_3)
+
+# High will be treatment grp
+T_counts <- raw_counts %>% 
+  dplyr::select(High_1, High_2, High_3)
+
+calculate_lfc <- function(T_counts, C_counts, df) {
+  # T_counts and C_counts should be matrices where each row corresponds to a guide 
+  # and each column corresponds to a replicate. Rows correspond to different guides.
+  # Columns correspond to replicates (RT for treatment, RC for control).
+  
+  # Calculate Tg,i,l,r and Cg,i,r for each guide and replicate. Drop first two columns as they contain gene and sgRNA info
+  T_log <- log2(T_counts + 32)
+  C_log <- log2(C_counts + 32)
+  
+  # Median normalization across guides for each replicate
+  T_median <- apply(T_log, 2, median)
+  C_median <- apply(C_log, 2, median)
+  
+  # Subtract the median for each replicate
+  T_median_normalized <- sweep(T_log, 2, T_median, "-")
+  C_median_normalized <- sweep(C_log, 2, C_median, "-")
+  
+  # Calculate the average across replicates for both treatment and control
+  T_mean <- rowMeans(T_median_normalized)
+  C_mean <- rowMeans(C_median_normalized)
+  
+  # Calculate the observed log2 fold change
+  y <- T_mean - C_mean
+
+  # Add the calculated vectors to the dataframe as new columns
+  df$T_log <- T_log
+  df$C_log <- C_log
+  df$T_median <- T_median  # Average of the medians across treatment replicates
+  df$C_median <- C_median  # Average of the medians across control replicates
+  df$T_median_normalized <- T_median_normalized
+  df$C_median_normalized <- C_median_normalized
+  df$T_mean <- T_mean
+  df$C_mean <- C_mean
+  # df$T_mean_normalized <- rowMeans(T_median_normalized)   # Treatment mean of median normalized
+  # df$C_mean_normalized <- rowMeans(C_median_normalized)   # Control mean of median normalized
+  df$LFC <- y                        # Log2 fold change
+  
+  return(df)
+}
+
+# Function to calculate priors for the Gaussian distribution
+calculate_priors <- function(y_gil, N_g, k = 0.5) {
+  # Initialize prior parameters
+  mu_w <- 0
+  sigma_w2 <- 1000
+  mu_x <- 0
+  sigma_x2 <- 1
+  
+  # Calculate the smoothed variance estimates
+  T_var <- apply(T_counts, 1, var)
+  C_var <- apply(C_counts, 1, var)
+  
+  # Prior precision based on the sum of treatment and control variances
+  tau_gil <- (T_var + C_var)
+  
+  # Assign priors
+  ag <- k * T_var
+  bg <- k * (T_var + C_var)
+  
+  return(list(mu_w = mu_w, sigma_w2 = sigma_w2, mu_x = mu_x, sigma_x2 = sigma_x2, tau_gil = tau_gil, ag = ag, bg = bg))
+}
+
+
+install.packages("MASS")
+install.packages("scipy")
+install.packages("gaussianKde")
+
+set.seed(42)  # For reproducibility
+
+select_random_gene <- function(gene_library) {
+  return(sample(names(gene_library), 1))
+}
+
+select_gRNAs <- function(gene_library, gene, N) {
+  return(sample(gene_library[[gene]], N, replace = TRUE))
+}
+select_negative_controls <- function(negative_control_set, N) {
+  return(sample(negative_control_set, N, replace = TRUE))
+}
+generate_negative_pseudogenes <- function(gene_library, negative_control_set, N, num_pseudogenes = 2000) {
+  negative_pseudogenes <- vector("list", num_pseudogenes)
+  
+  for (i in 1:num_pseudogenes) {
+    random_gene <- select_random_gene(gene_library)
+    selected_gRNAs <- select_gRNAs(gene_library, random_gene, N)
+    negative_pseudogenes[[i]] <- select_negative_controls(negative_control_set, N)
+  }
+  
+  return(negative_pseudogenes)
+}
+
+
+# Function to generate negative pseudogenes by resampling
+generate_pseudogenes <- function(gRNA_count, replicates, n_pseudogenes = 2000) {
+  pseudo_results <- matrix(0, nrow = n_pseudogenes, ncol = replicates)
+  
+  for (i in 1:n_pseudogenes) {
+    pseudo_results[i, ] <- sample(rnorm(gRNA_count, mean = 0, sd = 1), replicates)
+  }
+  
+  return(pseudo_results)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Calculate LFC
+y <- calculate_lfc(T_counts, C_counts, raw_counts)
+
+
+priors <- calculate_priors(y, N_g = 10)
+print(priors)
+
+# Example resampling
+pseudo_data <- generate_pseudogenes(gRNA_count = 10, replicates = 5)
+print(pseudo_data)
+
+
+
+```
+
+
+## Test R-adapted CountNorm function
+### TODO: test with raw sgRNA counts
+```{r test RCountNorm, echo=FALSE}
+# Sample data: 5 sgRNAs (rows) and 3 samples (columns)
+ctable <- list(
+  sgRNA1 = c(100, 200, 300),
+  sgRNA2 = c(400, 500, 600),
+  sgRNA3 = c(0, 0, 0),  # This sgRNA has zero counts
+  sgRNA4 = c(800, 700, 600),
+  sgRNA5 = c(1000, 900, 800)
+)
+
+# Define a dummy sgdict (not used in this example)
+sgdict <- list(
+  sgRNA1 = c("sgRNA1_ID", "Gene1"),
+  sgRNA2 = c("sgRNA2_ID", "Gene2"),
+  sgRNA3 = c("sgRNA3_ID", "Gene3"),
+  sgRNA4 = c("sgRNA4_ID", "Gene4"),
+  sgRNA5 = c("sgRNA5_ID", "Gene5")
+)
+
+# Normalization method: median
+method <- 'median'
+
+# Call the normalizeCounts function
+normalized_ctable <- normalizeCounts(ctable, sgdict = sgdict, method = method)
+
+# Print the original and normalized count tables
+print("Original Counts:")
+print(ctable)
+
+print("Normalized Counts:")
+print(normalized_ctable)
+
+```
+
+# Visualize non-targeting guides
+```{r Visualize best normalization method, fig.width=10, fig.height=8,  echo=FALSE, warning=FALSE}
+# Visualize Null Distribution of Non-targeting guides ####
+# Function to plot the log2 transformed values
+log2_density_plot <- function(data_frame, title_label) {
+  data_frame %>%
+    dplyr::mutate(normalized_read_count = as.numeric(normalized_read_count)) %>% 
+    mutate(log2_read_counts = log2(normalized_read_count)) %>%
+    ggplot(aes(x = normalized_read_count, color = bin, fill = bin)) +
+    geom_density(alpha = 0.1) + 
+    labs(title = title_label,
+         x = "Log2 Transformed \n Normalized Read Counts",
+         y = "Density") +
+    theme_minimal()
+}
+# Function to plot the signed log transformation
+signed_log_density_plot <- function(data_frame, title_label) {
+  data_frame %>%
+    mutate(normalized_read_count = as.numeric(normalized_read_count)) %>%
+    mutate(signed_log_read_count = sign(normalized_read_count) * log(abs(normalized_read_count) + 1)) %>% 
+    ggplot(aes(x = signed_log_read_count, color = bin, fill = bin)) +
+    geom_density(alpha = 0.1) + 
+    labs(title = title_label,
+         x = "Signed Log Transformed \n Normalized Read Counts",
+         y = "Density") +
+    theme_minimal()
+}
+# Function to plot the cube root transformation
+cube_root_density_plot <- function(data_frame, title_label) {
+  data_frame %>%
+    mutate(normalized_read_count = as.numeric(normalized_read_count)) %>%
+    mutate(cube_root_read_count = sign(normalized_read_count) * abs(normalized_read_count)^(1/3)) %>%
+    ggplot(aes(x = cube_root_read_count, color = bin, fill = bin)) +
+    geom_density(alpha = 0.1) + 
+    labs(title = title_label,
+         x = "Cube Root Transformed \n Normalized Read Counts",
+         y = "Density") +
+    theme_minimal()
+}
+
+stmn2_log2_density_plot <- log2_density_plot(neg_ctrl_sgrna_stmn2, "STMN2 Screen")
+tdp_log2_density_plot <- log2_density_plot(neg_ctrl_sgrna_tdp, "TDP Screen")
+iN3_log2_density_plot <- log2_density_plot(neg_ctrl_sgrna_i3N, "i3N Screen")
+ipsc_log2_density_plot <- log2_density_plot(neg_ctrl_sgrna_ipsc, "iPSC Screen")
+
+stmn2_cuberoot_density_plot <- cube_root_density_plot(neg_ctrl_sgrna_stmn2, "STMN2 Screen")
+tdp_cuberoot_density_plot <- cube_root_density_plot(neg_ctrl_sgrna_tdp, "TDP Screen")
+iN3_cuberoot_density_plot <- cube_root_density_plot(neg_ctrl_sgrna_i3N, "i3N Screen")
+ipsc_cuberoot_density_plot <- cube_root_density_plot(neg_ctrl_sgrna_ipsc, "iPSC Screen")
+
+stmn2_signedlog_density_plot <- signed_log_density_plot(neg_ctrl_sgrna_stmn2, "STMN2 Screen")
+tdp_signedlog_density_plot <- signed_log_density_plot(neg_ctrl_sgrna_tdp, "TDP Screen")
+iN3_signedlog_density_plot <- signed_log_density_plot(neg_ctrl_sgrna_i3N, "i3N Screen")
+ipsc_signedlog_density_plot <- signed_log_density_plot(neg_ctrl_sgrna_ipsc, "iPSC Screen")
+
+stmn2_log2_raw_density_plot <- log2_density_plot(neg_ctrl_raw_counts, "STMN2 Raw Counts")
+
+stmn2_cuberoot_raw_density_plot <- cube_root_density_plot(neg_ctrl_raw_counts, "STMN2 Raw Counts")
+
+stmn2_signedlog_raw_density_plot <- signed_log_density_plot(neg_ctrl_raw_counts, "STMN2 Raw Counts")
+
+
+# Arrange plots side by side
+gridExtra::grid.arrange(stmn2_log2_raw_density_plot, stmn2_log2_density_plot, tdp_log2_density_plot, iN3_log2_density_plot, ipsc_log2_density_plot, ncol = 3, nrow = 2)
+gridExtra::grid.arrange(stmn2_cuberoot_raw_density_plot, stmn2_cuberoot_density_plot, tdp_cuberoot_density_plot, iN3_cuberoot_density_plot, ipsc_cuberoot_density_plot, ncol = 3, nrow = 2)
+gridExtra::grid.arrange(stmn2_signedlog_raw_density_plot, stmn2_signedlog_density_plot, tdp_signedlog_density_plot, iN3_signedlog_density_plot, ipsc_signedlog_density_plot, ncol = 3, nrow = 2)
+
+# Alternate arrangement by screen
+gridExtra::grid.arrange(stmn2_log2_raw_density_plot, stmn2_cuberoot_raw_density_plot, stmn2_signedlog_raw_density_plot, stmn2_log2_density_plot, stmn2_cuberoot_density_plot, stmn2_signedlog_density_plot, ncol = 3, nrow = 2)
+gridExtra::grid.arrange(, ncol = 3, nrow = 1)
+gridExtra::grid.arrange(tdp_log2_density_plot, tdp_cuberoot_density_plot, tdp_signedlog_density_plot, ncol = 3, nrow = 2)
+gridExtra::grid.arrange(iN3_log2_density_plot, iN3_cuberoot_density_plot, iN3_signedlog_density_plot, ncol = 3, nrow = 1)
+gridExtra::grid.arrange(ipsc_log2_density_plot, ipsc_cuberoot_density_plot, ipsc_signedlog_density_plot, ncol = 3, nrow = 1)
+
+library(patchwork)
+combined_stmn2 <- stmn2_log2_raw_density_plot+ stmn2_cuberoot_raw_density_plot+ stmn2_signedlog_raw_density_plot+ stmn2_log2_density_plot+ stmn2_cuberoot_density_plot+ stmn2_signedlog_density_plot & theme(legend.position = "right")
+combined + plot_layout(guides = "collect")
+
+combined_ipsc <- iN3_log2_density_plot+ iN3_cuberoot_density_plot+ iN3_signedlog_density_plot+ ipsc_log2_density_plot+ ipsc_cuberoot_density_plot+ ipsc_signedlog_density_plot & theme(legend.position = "right")
+combined_ipsc + plot_layout(guides = "collect")
+
+```
+
+```{r scratch Alternate visualize best normalization method, echo=FALSE, eval=FALSE, include=FALSE, warning=FALSE}
+
+# Create plots high/low FACS bins of normalized-log2 scaled sgRNA read counts
+# neg_ctrl_sgrna_stmn2_high <- neg_ctrl_sgrna_stmn2 %>%
+#   dplyr::mutate(normalized_read_count = as.numeric(normalized_read_count)) %>% 
+#   dplyr::filter(startsWith(bin, "high")) %>% 
+#   mutate(log2_read_counts = log2(normalized_read_count)) %>%
+#   ggplot(aes(x = normalized_read_count, color = bin, fill = bin)) +
+#   geom_density(alpha = 0.1) + 
+#   labs(title = "Density Plot of Normalized Read Counts (STMN2 Screen)",
+#        x = "Normalized read counts (log2 scaled)",
+#        y = "Density") +
+#   theme_minimal()
+# neg_ctrl_sgrna_stmn2_low <- neg_ctrl_sgrna_stmn2 %>%
+#   dplyr::mutate(normalized_read_count = as.numeric(normalized_read_count)) %>% 
+#   dplyr::filter(startsWith(bin, "low")) %>% 
+#   mutate(log2_read_counts = log2(normalized_read_count)) %>%
+#   ggplot(aes(x = normalized_read_count, color = bin, fill = bin)) +
+#   geom_density(alpha = 0.1) + 
+#   labs(title = "Density Plot of Normalized Read Counts (STMN2 Screen)",
+#        x = "Normalized read counts (log2 scaled)",
+#        y = "Density") +
+#   theme_minimal()
+
+# Both high and low bins overlayed
+# neg_ctrl_sgrna_stmn2 %>%
+# dplyr::mutate(normalized_read_count = as.numeric(normalized_read_count)) %>% 
+#   mutate(log2_read_counts = log2(normalized_read_count)) %>%
+#   ggplot(aes(x = normalized_read_count, color = bin, fill = bin)) +
+#   geom_density(alpha = 0.1) + 
+#   labs(title = "Density Plot of Normalized Read Counts (STMN2 Screen)",
+#        x = "Normalized read counts (log2 scaled)",
+#        y = "Density") +
+#   theme_minimal()
+
+# Group by 'bin' and calculate the median of 'normalized_read_count'
+# neg_ctrl_sgrna_stmn2 %>%
+#   group_by(bin) %>%
+#   dplyr::mutate(normalized_read_count = as.numeric(normalized_read_count)) %>% 
+#   dplyr::summarize(median_normalized_read_count = median(normalized_read_count, na.rm = TRUE))
+
+# TODO: consider different methods of normalization ----
+# sgrna_stmn2 %>% 
+#   dplyr::filter(Gene=="negative_control")  # only select negative controls
+
+# Try with signed log and cube root
+# neg_ctrl_sgrna_stmn2 %>%
+#   dplyr::mutate(normalized_read_count = as.numeric(normalized_read_count)) %>% 
+#   mutate(signed_log_read_count = sign(normalized_read_count) * log(abs(normalized_read_count) + 1)) %>% 
+#   ggplot(aes(x = signed_log_read_count, color = bin, fill = bin)) +
+#   geom_density(alpha = 0.1) + 
+#   labs(title = "Density Plot of Signed Log Transformed Normalized Read Counts (STMN2 Screen)",
+#        x = "Signed Log Transformed Normalized Read Counts",
+#        y = "Density") +
+#   theme_minimal()
+# 
+# neg_ctrl_sgrna_stmn2 %>%
+#   dplyr::mutate(normalized_read_count = as.numeric(normalized_read_count)) %>% 
+#   mutate(cube_root_read_count = sign(normalized_read_count) * abs(normalized_read_count)^(1/3)) %>% 
+#   ggplot(aes(x = cube_root_read_count, color = bin, fill = bin)) +
+#   geom_density(alpha = 0.1) + 
+#   labs(title = "Density Plot of Cube Root Transformed Normalized Read Counts (STMN2 Screen)",
+#        x = "Cube Root Transformed Normalized Read Counts",
+#        y = "Density") +
+#   theme_minimal()
+
+
+# # Create plots high/low FACS bins of normalized-log2 scaled sgRNA read counts
+# neg_ctrl_tdp_log2 <- neg_ctrl_tdp_sgrna %>%
+#   dplyr::mutate(normalized_read_count = as.numeric(normalized_read_count)) %>% 
+#   mutate(log2_read_counts = log2(normalized_read_count)) %>%
+#   ggplot(aes(x = normalized_read_count, color = bin, fill = bin)) +
+#   geom_density(alpha = 0.1) + 
+#   labs(title = "Density Plot of Normalized Read Counts (TDP Screen)",
+#        x = "Normalized read counts (log2 scaled)",
+#        y = "Density") +
+#   theme_minimal()
+```
+
+
+# Correlation matrix plot of non-targeting control guides
+```{r, echo=FALSE, fig.width=10, fig.height=8}
+# Create function for calculating correlations and outputting lower triangle correlation matrices ####
+lower.tri.cor.matrix <- function(df){
+  cor.matrix<-round(cor(df, use = "complete.obs"), 3)
+  cor.matrix[upper.tri(cor.matrix)]<-""
+  cor.matrix<-as.data.frame(cor.matrix)
+  cor.matrix
+  
+  return(cor.matrix)
+}
+#####     CV VALUES    #####
+# inter.assay.cv <- function(df, ...){
+#   grp_vars <- quos(...)
+#   selected.cols <- df %>%
+#     select(!!!grp_vars)
+#   dat.as.matrix <- as.matrix(selected.cols)
+#   selected.cols$mean <- rowMeans(selected.cols,na.rm = T)
+#   selected.cols$sd <- rowSds(dat.as.matrix,na.rm = T)
+#   selected.cols <- selected.cols %>%
+#     mutate(CV = sd/mean,
+#            pct.CV = (sd/mean)*100)
+#   
+#   return(selected.cols)
+# }
+# R1.cv <- inter.assay.cv(joined_df, low1_rep1_stmn2, low1_rep1_i3N)
+# names(R1.cv) <- c("R1_S1", "R1_S2", "R1_mean", "R1_sd", "R1_CV", "R1_pct.CV")
+# mean(R1.cv$R1_pct.CV, na.rm = T)
+
+inter.assay.cv <- function(df, ...) {
+  grp_vars <- quos(...)
+  selected.cols <- df %>%
+    select(!!!grp_vars)
+  
+  dat.as.matrix <- as.matrix(selected.cols)
+  selected.cols <- selected.cols %>%
+    mutate(
+      mean = rowMeans(selected.cols, na.rm = TRUE),
+      sd = rowSds(dat.as.matrix, na.rm = TRUE),
+      CV = sd / mean,
+      pct.CV = (sd / mean) * 100
+    )
+  
+  return(selected.cols)
+}
+
+neg_ctrl_sgrna_stmn2 <- sgrna_stmn2 %>%
+  dplyr::select(sgrna, Gene, control_count, treatment_count) %>% 
+  tidyr::separate(control_count, into = c("low1_rep1", "low2_rep2", "low3_rep3"), sep = "/") %>% 
+  tidyr::separate(treatment_count, into = c("high1_rep1", "high2_rep2", "high3_rep3"), sep = "/") %>% 
+  dplyr::filter(Gene=="negative_control")
+colnames(neg_ctrl_sgrna_stmn2)[-(1:2)]<-paste(colnames(neg_ctrl_sgrna_stmn2)[-(1:2)],"stmn2",sep="_")
+# TDP dataframe
+neg_ctrl_sgrna_tdp <- sgrna_tdp %>%
+  dplyr::select(sgrna, Gene, low = control_count, high = treatment_count) %>% 
+  dplyr::filter(Gene=="negative_control")
+colnames(neg_ctrl_sgrna_tdp)[-(1:2)]<-paste(names(neg_ctrl_sgrna_tdp)[-(1:2)],"tdp",sep="_")
+# i3N dataframe
+neg_ctrl_sgrna_i3N <- sgrna_i3N %>%
+  dplyr::select(sgrna, Gene, control_count, treatment_count) %>% 
+  tidyr::separate(control_count, into = c("low1_rep1", "low2_rep2"), sep = "/") %>% 
+  tidyr::separate(treatment_count, into = c("high1_rep1", "high2_rep2"), sep = "/") %>% 
+  dplyr::filter(Gene=="negative_control")
+colnames(neg_ctrl_sgrna_i3N)[-(1:2)]<-paste(names(neg_ctrl_sgrna_i3N)[-(1:2)],"i3N",sep="_")
+# iPSC dataframe
+neg_ctrl_sgrna_ipsc <- sgrna_ipsc %>%
+  dplyr::select(sgrna, Gene, control_count, treatment_count) %>% 
+  tidyr::separate(control_count, into = c("low1_rep1", "low2_rep2"), sep = "/") %>% 
+  tidyr::separate(treatment_count, into = c("high1_rep1", "high2_rep2"), sep = "/") %>% 
+  dplyr::filter(Gene=="negative_control")
+colnames(neg_ctrl_sgrna_ipsc)[-(1:2)]<-paste(names(neg_ctrl_sgrna_ipsc)[-(1:2)],"ipsc",sep="_")
+
+# Put all negative control read count values into a single df
+joined_df <- dplyr::left_join(neg_ctrl_sgrna_stmn2, neg_ctrl_sgrna_tdp)
+joined_df <- dplyr::left_join(joined_df, neg_ctrl_sgrna_i3N)
+joined_df <- dplyr::left_join(joined_df, neg_ctrl_sgrna_ipsc)
+
+# Convert specified columns to numeric
+joined_df <- joined_df %>%
+ mutate(across(-c(1, 2), as.numeric))
+
+neg_ctrl_cor <- cor(joined_df[,-c(1,2)])
+# head(round(z, 2))
+# Matrix of p-values with corresponding correlation matrix
+# mat : is a matrix of data
+# ... : further arguments to pass to the native R cor.test function
+cor.mtest <- function(mat, ...) {
+    mat <- as.matrix(mat)
+    n <- ncol(mat)
+    p.mat<- matrix(NA, n, n)
+    diag(p.mat) <- 0
+    for (i in 1:(n - 1)) {
+        for (j in (i + 1):n) {
+            tmp <- cor.test(mat[, i], mat[, j], ...)
+            p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
+        }
+    }
+  colnames(p.mat) <- rownames(p.mat) <- colnames(mat)
+  p.mat
+}
+# matrix of the p-value of the correlation
+p.mat <- cor.mtest(joined_df[,-c(1,2)])
+col<- colorRampPalette(c("maroon1", "lightgreen"))(5)
+# Save the original margins
+original_margins <- par()$mar
+
+corrplot(neg_ctrl_cor, method = "number", type = "lower", tl.col = "black", tl.srt = 10, tl.cex = 0.85, p.mat = p.mat, sig.level = 0.01, insig = "blank", col = col, is.corr = FALSE, title = "Correlation matrix of sgRNA guide counts", mar = c(0.1, 0, 1.5, 0) + 0.2)
+# Restore the original margins
+corrplot(neg_ctrl_cor, type = "lower", tl.col = "black", tl.srt = 10, tl.cex = 0.85, p.mat = p.mat, sig.level = 0.01, insig = "blank", col = col, is.corr = FALSE, title = "Correlation matrix of sgRNA guide counts", mar = c(0.1, 0.1, 1.5, 0.1) + 0.2)
+corrplot(neg_ctrl_cor, method = "number", order = "hclust", type = "lower", tl.col = "black", tl.srt = 10,tl.cex = 0.85, p.mat = p.mat, sig.level = 0.01, insig = "blank", col = col, is.corr = FALSE, title = "Correlation matrix of sgRNA guide counts - hierarchical cluster", mar = c(0.1, 0.1, 1.5, 0.1) + 0.2)
+corrplot(neg_ctrl_cor, type = "lower", order = "hclust", tl.col = "black", tl.srt = 10, tl.cex = 0.85, p.mat = p.mat, sig.level = 0.01, insig = "blank", col = col, is.corr = FALSE,  title = "Correlation matrix of sgRNA guide counts - hierarchical cluster", mar = c(0.1, 0.1, 1.5, 0.1) + 0.2)
+```
+
+```{r comparing BA plots.rmd, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# If this is your first time using R, please install packages with the commented lines below. Note the line will need to be uncommented (delete leading #) in order to run
+# install.packages(c("ggplot2", "BlandAltmanLeh", "readxl", "stargazer", "matrixStats"), dependencies = TRUE)
+# Load packages into the current R session.
+library(ggplot2)  #data visualization
+library(BlandAltmanLeh)
+library(readxl)   #read excel files
+library(stargazer)  #print out clean tables
+library(matrixStats)
+library(corrplot)
+library(gridExtra)
+library(dplyr)
+library(ggExtra)
+library(blandr)
+library(ggpubr)
+#####     CV VALUES    #####
+inter.assay.cv <- function(df, ...){
+  grp_vars <- quos(...)
+  selected.cols <- df %>%
+    select(!!!grp_vars)
+  dat.as.matrix <- as.matrix(selected.cols)
+  selected.cols$mean <- rowMeans(selected.cols,na.rm = T)
+  selected.cols$sd <- rowSds(dat.as.matrix,na.rm = T)
+  selected.cols <- selected.cols %>%
+    mutate(CV = sd/mean,
+           pct.CV = (sd/mean)*100)
+  
+  return(selected.cols)
+}
+
+```
+
+# Calculate raw count differences between the bins of the STMN2 screen 
+Create columns to store raw count differences between the STMN2 bins. Use to examine raw inTRA-assay variability
+```{r raw count difference-intRA-assay variability, echo=FALSE, include=FALSE}
+# STMN2
+# Extract column names starting from the 3rd column
+columns <- colnames(raw_counts)[3:ncol(raw_counts)]
+
+# Create a list of all possible combinations of column comparisons
+  # Generate all possible combinations of columns taken 2 at a time
+comparisons <- combn(columns, 2, simplify = FALSE)
+
+# Store the combinations as a list of lists and assign to the variable `samples`
+samples <- lapply(comparisons, function(x) c(x[1], x[2]))
+
+# Function to calculate differences between columns in df
+calculate_differences <- function(pair) {
+  col1 <- neg_ctrl_raw_counts_wide[[pair[[1]]]]
+  col2 <- neg_ctrl_raw_counts_wide[[pair[[2]]]]
+  difference <- col1 - col2
+  return(difference)
+}
+
+# Apply the function to each pair in samples
+differences_list <- lapply(samples, calculate_differences)
+
+# Naming the list elements to reflect the column comparisons
+names(differences_list) <- sapply(samples, function(pair) paste(pair[[1]], "-", pair[[2]]))
+
+```
+
+<!-- # Compare Raw sgRNA counts against counts in MAGeCK sgRNA summary file -->
+```{r, echo=FALSE}
+# sgrna_stmn2 <- read.delim("/Users/Claire/Library/CloudStorage/Box-Box/MSTP Research Rotations/Summer_2024_Might_Ward_Lab/CRISPRi_screenfiles/CRISPRi_alg_optimization/data_processed/rra-High-Low-STMN2.sgrna_summary.txt", sep = "\t", header = TRUE)
+# # Import Raw counts file
+# raw_counts_sgrna_stmn2 <- read.delim("/Users/Claire/Library/CloudStorage/Box-Box/MSTP Research Rotations/Summer_2024_Might_Ward_Lab/CRISPRi_screenfiles/CRISPRi_alg_optimization/counts/all.count.txt", sep = "\t", header = TRUE)
+# 
+# counts_sgrna_stmn2 <- sgrna_stmn2 %>%
+#   dplyr::select(sgrna, Gene, control_count, treatment_count) %>% 
+#   tidyr::separate(control_count, into = c("low1", "low2", "low3"), sep = "/") %>% 
+#   tidyr::separate(treatment_count, into = c("high1", "high2", "high3"), sep = "/")
+#   # tidyr::pivot_longer(cols = starts_with(start_strings),
+#   #              names_to = "bin",
+#   #              values_to = "normalized_read_count")
+# 
+# start_strings <- c("High", "Low")
+# 
+# raw_counts_sgrna_stmn2_long <- raw_counts_sgrna_stmn2 %>% 
+#   tidyr::pivot_longer(cols = starts_with(start_strings),
+#                       names_to = "bin",
+#                       values_to = "raw_counts")
+# raw_counts_sgrna_stmn2_long %>% 
+#     ggplot(aes(x = raw_counts, color = bin, fill = bin)) +
+#     geom_density(alpha = 0.1) + 
+#     labs(x = "Raw Read Counts",
+#          y = "Density") +
+#     theme_minimal()
+# 
+# 
+# raw_counts_sgrna_stmn2_long %>%
+#     dplyr::mutate(normalized_read_count = as.numeric(normalized_read_count)) %>% 
+#     mutate(log2_read_counts = log2(normalized_read_count)) %>%
+#     ggplot(aes(x = normalized_read_count, color = bin, fill = bin)) +
+#     geom_density(alpha = 0.1) + 
+#     labs(title = title_label,
+#          x = "Log2 Transformed \n Normalized Read Counts",
+#          y = "Density") +
+#     theme_minimal()
+# 
+# 
+# # Function to plot the signed log transformation
+# signed_log_density_plot <- function(data_frame, title_label) {
+#   data_frame %>%
+#     mutate(normalized_read_count = as.numeric(normalized_read_count)) %>%
+#     mutate(signed_log_read_count = sign(normalized_read_count) * log(abs(normalized_read_count) + 1)) %>% 
+#     ggplot(aes(x = signed_log_read_count, color = bin, fill = bin)) +
+#     geom_density(alpha = 0.1) + 
+#     labs(title = title_label,
+#          x = "Signed Log Transformed \n Normalized Read Counts",
+#          y = "Density") +
+#     theme_minimal()
+# }
+# # Function to plot the cube root transformation
+# cube_root_density_plot <- function(data_frame, title_label) {
+#   data_frame %>%
+#     mutate(normalized_read_count = as.numeric(normalized_read_count)) %>%
+#     mutate(cube_root_read_count = sign(normalized_read_count) * abs(normalized_read_count)^(1/3)) %>%
+#     ggplot(aes(x = cube_root_read_count, color = bin, fill = bin)) +
+#     geom_density(alpha = 0.1) + 
+#     labs(title = title_label,
+#          x = "Cube Root Transformed \n Normalized Read Counts",
+#          y = "Density") +
+#     theme_minimal()
+# }
+# 
+# stmn2_log2_density_plot <- log2_density_plot(raw_counts_sgrna_stmn2, "STMN2 Screen")
+# 
+# stmn2_cuberoot_density_plot <- cube_root_density_plot(raw_counts_sgrna_stmn2, "STMN2 Screen")
+# 
+# 
+# stmn2_signedlog_density_plot <- signed_log_density_plot(raw_counts_sgrna_stmn2, "STMN2 Screen")
+# 
+# 
+# # Arrange plots side by side
+# gridExtra::grid.arrange(stmn2_log2_density_plot, stmn2_cuberoot_density_plot, stmn2_signedlog_density_plot, ncol = 2, nrow = 2)
+# gridExtra::grid.arrange(stmn2_cuberoot_density_plot, tdp_cuberoot_density_plot, iN3_cuberoot_density_plot, ipsc_cuberoot_density_plot, ncol = 2, nrow = 2)
+# gridExtra::grid.arrange(stmn2_signedlog_density_plot, tdp_signedlog_density_plot, iN3_signedlog_density_plot, ipsc_signedlog_density_plot, ncol = 2, nrow = 2)
+# 
+# 
+
+```
+
+# SANDBOX 
+```{r SANDBOX, echo=FALSE, eval=FALSE}
+# Get column names
+# col_names <- colnames(joined_df[-(1:2)])
+# 
+# # Generate all combinations of column names
+# all_combinations <- lapply(1:length(col_names), function(x) combn(col_names, x, simplify = FALSE))
+# 
+# # Flatten the list of combinations
+# all_combinations <- unlist(all_combinations, recursive = FALSE)
+# 
+# 
+# # # Function to perform one-sample t-tests
+# perform_t_test <- function(list_of_lists, df) {
+#   col_name <- sample[[1]]
+#   t_test_result <- t.test(df[[col_name]], mu = 0)
+#   return(t_test_result)
+# }
+# 
+# # Loop through each sample in the list and perform the t-test
+# t_test_results <- lapply(differences_list, perform_t_test, df = tau_df_halo)
+# 
+# # Print the results
+# names(t_test_results) <- sapply(samples, function(x) x[[1]])
+# print(t_test_results)
+```
