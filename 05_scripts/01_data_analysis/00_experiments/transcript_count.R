@@ -3,7 +3,7 @@ library(ggrepel)
 library(svglite)
 library(plotly)
 
-rra.High.Low.STMN2.sgrna_summary <- read.delim("~/Desktop/Projects/Others/Ward/Ward_figures_240306/input/rra-High-Low-STMN2.sgrna_summary.txt")
+rra.High.Low.STMN2.sgrna_summary <- read.delim("/Users/claireps/Desktop/dual_guide_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/test/High_vs_Low.sgrna_summary.txt")
 
 
 
@@ -40,7 +40,7 @@ rra.High.Low.STMN2.sgrna_summary %>%
   #           color="green",
   #           alpha=0.7)+
   geom_label_repel(data = rra.High.Low.STMN2.sgrna_summary %>%
-                     filter((control_mean>=3000|
+                     dplyr::filter((control_mean>=3000|
                                treat_mean>=3000),
                               abs(LFC) >4)
                               ,
@@ -48,7 +48,7 @@ rra.High.Low.STMN2.sgrna_summary %>%
                    segment.color="black",
                    alpha=0.6,
                    max.overlaps = Inf
-  )+
+  ) +
   scale_x_log10()+
   scale_y_log10()+
   coord_fixed(1)+
@@ -61,3 +61,4 @@ rra.High.Low.STMN2.sgrna_summary %>%
   )+
   theme_classic()+
   theme(plot.title = element_text(hjust = 0.5))
+
