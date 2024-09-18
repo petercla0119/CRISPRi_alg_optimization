@@ -17,12 +17,21 @@ x
 #'              Columns contain the sgRNA counts for each replicate which are separated with '/'. 
 #'              Designed for STMN2 screen sgRNA summary file. 
 #'                  The STMN2 screen was comprised of 3 paired replicates after sorting (high and low), thus totaling to 6 samples.
-#' @param file_path The path to the sgRNA summary .txt file.              
+#' @param input The path to the sgRNA summary .txt file or the loaded dataframe.              
 #' @returns A dataframe with 'control_count' and 'treatment_count' parsed into separate columns.
-separate_sgrna_summary <- function(file_path) {
-  # Read the data
-  sgrna_summary <- read.delim(file_path)
-
+separate_sgrna_summary <- function(input) {
+    
+  # Check if input is a file path or dataframe
+  if (is.character(input)) {
+    # If input is a file path, read the file
+    sgrna_summary <- read.delim(input)
+  } else if (is.data.frame(input)) {
+    # If input is already a dataframe, use it directly
+    sgrna_summary <- input
+  } else {
+    stop("Input must be either a file path or a dataframe.")
+  }
+  
   # Split the control and treatment counts into individual replicates
   sgrna_summary$control_1 <- sgrna_summary$control_count %>%
     str_split_i("/", 1) %>%
@@ -33,7 +42,7 @@ separate_sgrna_summary <- function(file_path) {
   sgrna_summary$control_3 <- sgrna_summary$control_count %>%
     str_split_i("/", 3) %>%
     as.numeric()
-
+  
   sgrna_summary$treatment_1 <- sgrna_summary$treatment_count %>%
     str_split_i("/", 1) %>%
     as.numeric()
