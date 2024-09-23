@@ -1,92 +1,732 @@
 ---
 title: "stmn2_edgeR"
+author: "Claire S. Peterson"
 format: html
 editor: visual
+execute:
+  echo: false
+  warning: false
+editor_options: 
+  chunk_output_type: inline
 ---
 
-Goal of the notebook is to use edgeR on the STMN2 screen. Previous attempts to generate plots from the STMN2 gene file had noise plateaued
+**Objective**: The goal of the notebook is to use edgeR on the STMN2 screen. Previous attempts to generate plots from the STMN2 gene file had noise plateaued. Reminder that the MAGeCK output data is on the Desktop, whereas scripts are located 
 
-## Setup
-
-```{r}
-#| echo: false
-
-# Try using edgeR
-
+# STMN2 Screen
+```{r Setup}
+# Install packages
 library(edgeR)
 library(dplyr)
-
-# load data
-raw_counts <- read.delim("/Users/Claire/Library/CloudStorage/Box-Box/MSTP Research Rotations/Summer_2024_Might_Ward_Lab/CRISPRi_alg_optimization/00_references_and_code/files_from_others/00_JH/01_data/00_processed_data/00_mageck_counts/counts/all.count.txt", sep = "\t", header = TRUE)
-
-# Original sgRNA MAGeCK Summary file
-read.delim("/Users/Claire/Library/CloudStorage/Box-Box/Graduate_School/PhD/00_projects/CRISPRi_alg_optimization/02_processed_data/rra-High-Low-STMN2.sgrna_summary")
-
+source("~/CRISPRi_alg_optimization/05_scripts/01_data_analysis/00_experiments/clean_preprocess_module.R")
+```
+```{r Import raw data}
+# Import the raw count data from the MAGeCK count function
+raw_counts <- read.delim("~/Desktop/Projects/dual_guide_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/count/all.count.txt", sep = "\t", header = TRUE)
 ```
 
-## Read alignment/processing
+## Prepare data for DGEList object for edgeR
+```{r Clean and explore the raw read count data}
+# Convert counts columns to numerics
+raw_counts[ , 3:ncol(raw_counts)] <- base::lapply(raw_counts[ , 3:ncol(raw_counts)], as.numeric)
 
-## Count loading and annotation
+base::summary(raw_counts)
+# TODO: Why are there so many NA values in High_rep3? Like 78 NAs versus 16 in other samples.
 
-## Filtering and normalization
+# There are zero and NA values, but how many?
+zero_count_per_column <- sapply(raw_counts, function(x) sum(x == 0, na.rm = TRUE))
+print(zero_count_per_column)
 
-We next filter out sgRNAs and samples with low numbers of reads. Need a CPM greater than 5 in 15 or more samples to keep sgRNAs, and at least 100,000 reads to keep a given sample.
-
-### Data exploration
-
-```{r volcano plot of original sgRNA file, echo=FALSE}
-
-
-
+# TODO: Why are there 0s in the sgRNA column
+raw_counts %>% 
+  dplyr::filter(sgRNA==0)
+# All rows are 0 or have NA so okay to remove the rows with an sgRNA == 0
 ```
 
-### Design matrix
+```{r Remove all zeros and NA values}
+# Load Counts ----
+## Remove NA from raw_counts df
+no_na_raw_counts <- remove_na(raw_counts)
 
-### Dispersion estimation
+## Remove zeros in the sgRNA or Gene column and recode 0s in other columns
+clean_raw_counts <- no_na_raw_counts %>% 
+  dplyr::filter(!sgRNA==0) %>% 
+  dplyr::filter(!Gene==0) %>% 
+  dplyr::mutate_all(~replace(., . == 0, 0.0001))
 
-### 
-
-```{r}
-#| echo: false
-
-# Try using edgeR
-
-library(edgeR)
-library(dplyr)
-
-# load data
-raw_counts <- read.delim("/Users/Claire/Library/CloudStorage/Box-Box/MSTP Research Rotations/Summer_2024_Might_Ward_Lab/CRISPRi_alg_optimization/00_references_and_code/files_from_others/00_JH/01_data/00_processed_data/00_mageck_counts/counts/all.count.txt", sep = "\t", header = TRUE)
-
-
-# TODO: handle duplicate gene names
-unique_genes_df <- raw_counts %>%
-group_by(Gene) %>%
-  filter(n() == 1) %>%
-  ungroup()
-
-rownames(unique_genes_df) <- as.character(unique_genes_df$Gene)
-# unique_genes_df$Gene<-NULL
-mygroups <- c("Low1","Low1","Low1","High1","High1","High1")
-
-y <- DGEList(counts=unique_genes_df, genes=rownames(unique_genes_df), group = mygroups)
-# Filtering and normalization
-# There is no purpose in analysing genes that are not expressed in either experimental condition, so genes are first filtered on expression levels.
-keep <- filterByExpr(y)
-table(keep)
-y <- y[keep, , keep.lib.sizes=FALSE]
-y <- normLibSizes(y)
-plotMDS(y, col=rep(1:2, each=3))
-# Distances on an MDS plot of a DGEList object correspond to leading log-fold-change qbetween each pair of samples. Leading log-fold-change is the root-mean-square average of the largest log2-fold-changes between each pair of samples. Each pair of samples extracted at each time tend to cluster together, suggesting a batch effect. The hrcc treated samples tend to be below the mock samples for each time, suggesting a treatment effect within each time. The two samples at time 1 are less consistent than at times 2 and 3.
-
-y <- calcNormFactors(y)
-y <- estimateDisp(y)
-et <- exactTest(y)
-
-result_edgeR <- as.data.frame(topTags(et, n=nrow(unique_genes_df)))
-
-table(result_edgeR$FDR < 0.05)
-plot(result_edgeR$logFC, -log10(result_edgeR$FDR), col=ifelse(result_edgeR$FDR<0.05,"red","black"),main="FDR volcano plot",xlab="log2FC",ylab="-log10(FDR)")
-text(result_edgeR$logFC, -log10(result_edgeR$FDR), labels=result_edgeR$sgRNA)
-hist(result_edgeR$PValue, breaks=20, xlab="P-Value", col="royalblue", ylab="Frequency", main="P-value distribution")
-
+## Verify that all 0s and NAs were removed from the df
+sapply(clean_raw_counts, function(x) sum(x == 0, na.rm = TRUE))
+base::summary(clean_raw_counts)
 ```
+
+## Experiments
+### Experiment 1: Try analysis after removing all zero and NA values
+```{r Exp 1a. Create DGEList Object}
+# Exp 1. Create DGEList object for edgeR ----
+## Convert the DataFrame to a Matrix
+## Assuming df is your dataframe and the first column contains gene names
+count_matrix <- as.matrix(clean_raw_counts[, -1:-2])  # Exclude the two columns with sgRNAs and gene names
+rownames(count_matrix) <- clean_raw_counts[, 2]    # Set the gene names as rownames
+
+## Include the group information when creating the DGEList object
+group <- factor(c("Low", "Low", "Low", "High", "High", "High"))  # Define your group/condition
+dge <- DGEList(counts = count_matrix, group = group)
+
+# Create a new col to label replicate number and sample info 
+dge$samples$id <- c(1,2,3,4,5,6) # 1=low1,2=low2,3=low3,4=high1,5=high2,6=high3
+dge$samples$replicate = c(1,1,2,2,3,3) # high 1, low 1, high 2, low 2, high 3, low 3
+
+# Create new list to label sgRNA ID
+dge$genes <- data.frame(id = clean_raw_counts[, 1])
+# Copy the count data 
+dge$genes <- as.data.frame(dge$genes)
+dge$genes$id <- as.matrix(clean_raw_counts[,1])
+
+print(dge)
+
+# # Create dge obj with numeric group coding - Experiment 1a - does coding by numeric matter? - Ans: No -----
+# # group <- c(1,1,1,2,2,2)
+# dge_num <- DGEList(counts = count_matrix, group = group)
+```
+
+```{r Exp 1b. Filtering and Normalization}
+# Exp 1b. Filtering 1 ----
+# Genes are only retained if they are expressed at a minimum level
+# The group factor or the experimental design matrix can also be given directly to the filterBy Expr function
+# TODO: what does a "minimum level" mean
+keep <- filterByExpr(dge, group = group)
+dge <- dge[keep, , keep.lib.sizes=FALSE]
+
+
+# Exp 1b. Filtering 2 ----
+# Filter out sgRNAs with at least 0.5 counts per million in at least 3 samples. Used CPM since values are standardized for systematic differences in the amount of sequencing between samples
+sel <- rowSums(cpm(dge$counts)>0.5)>=3
+dge_1b = dge[sel, ]
+```
+
+The **dge** obj has (`{r} I(nrow(dge$counts))`) rows, whereas the **dge_1b** obj has (`{r} I(nrow(dge_1b$counts))`) rows. Showing fewer genes are removed with the `filterByExpr` function from edgeR pkg
+
+
+<!-- ```{r} -->
+<!-- # Exp 1b. Plot Filtered sgRNAs ---- -->
+<!-- # Plot number of hairpins that could be matched per sample and total for each hairpin across all samples -->
+<!-- # Setup arrangement of plots -->
+<!-- # par(mfrow = c(2, 1)) -->
+<!-- # Plot number of hairpins that could be matched per sample -->
+<!-- barplot(colSums(dge$counts),  -->
+<!--         las=1, # Make x-axis text label horizontal -->
+<!--         main="Counts per index", sub = "From filterByExpr", -->
+<!--         col=cols, cedge.names=0.5, cedge.adgeis=0.8) -->
+<!-- barplot(colSums(dge_1b$counts), las=1,  -->
+<!--         main="Counts per index", sub = "From at least 0.5 counts per million in at least 3 samples", -->
+<!--         col=cols, cedge.names=0.5, cedge.adgeis=0.8) -->
+
+<!-- legend("topright", legend=c("Control", "Drug"), col=c(3,4), pch=15) -->
+<!-- barplot(rowSums(dge$counts), las=2, main="Counts per sgRNA",  -->
+<!--           adgeisnames=FALSE, cedge.adgeis=0.8) -->
+
+<!-- barplot(colSums(dge$counts), las = 2, main = "Counts per index", sub = "From filterByExpr", cex.names = 0.5, cex.axis = 0.8, ylim = c(0, 2e+07)) -->
+<!-- barplot(colSums(dge_1b$counts), las = 2, main = "Counts per index", sub = "From at least 0.5 counts per million in at least 3 samples", cex.names = 0.5, cex.axis = 0.8, ylim = c(0, 2e+07)) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- z <- rowSums(cpm(dge$counts)>5)>=15 -->
+<!-- cols <- as.numeric(dge$samples$group)+2 -->
+<!-- barplot(colSums(dge$counts), las=2, main="Counts per index", -->
+<!--           col=cols, cedge.names=0.5, cedge.adgeis=0.8) -->
+<!-- legend("topright", legend=c("Control", "Drug"), col=c(3,4), pch=15) -->
+<!-- barplot(rowSums(dge$counts), las=2, main="Counts per sgRNA",  -->
+<!--           adgeisnames=FALSE, cedge.adgeis=0.8) -->
+<!-- # Exp 1b. Normalize ---- -->
+
+<!-- ## Carry out normalization using TMM -->
+<!-- dge <- calcNormFactors(dge, method = "TMM") -->
+<!-- # dge_num <- calcNormFactors(dge_num, method = "TMM") -->
+
+<!-- # View normalization factors -->
+<!-- dge$samples -->
+<!-- # dge_num$samples -->
+
+<!-- # Get normalized counts per million (CPM) -->
+<!-- normalized_counts <- cpm(dge) -->
+
+<!-- # Plot library sizes before normalization -->
+<!-- barplot(dge$samples$lib.size, main = "Library Sizes Before Normalization", ylab = "Library Size") -->
+
+<!-- # Apply normalization and plot normalization factors -->
+<!-- dge <- calcNormFactors(dge) -->
+<!-- barplot(dge$samples$lib.size * dge$samples$norm.factors, main = "Library Sizes After Normalization", ylab = "Effective Library Size") -->
+
+<!-- base::summary(dge$samples) -->
+<!-- ``` -->
+
+<!-- ```{r Exp 1b. I Verify Retainment of Genes of Interest} -->
+<!-- # I want to ensure TDP and STMN2 are kept for downstream analysis - if not, then useless ---- -->
+<!-- keep <- as.matrix(keep) # Convert keep obj (logical) to a matrix to verify genes of interest are retained -->
+<!-- # For genes_removed -->
+<!-- genes_removed <- data.frame(Gene = rownames(keep[which(keep == FALSE), , drop = FALSE]),  -->
+<!--                             Value = keep[keep == FALSE]) -->
+<!-- # For genes_keep -->
+<!-- genes_keep <- data.frame(Gene = rownames(keep[which(keep == TRUE), , drop = FALSE]),  -->
+<!--                          Value = keep[keep == TRUE]) -->
+<!--     # Does the same as the above lines but with cleaner code ---- -->
+<!--     # genes_removed <- as.matrix(keep[keep==FALSE]) -->
+<!--     # genes_removed <- data.frame(Gene = rownames(genes_removed), Value = genes_removed[,1]) -->
+<!--     #  -->
+<!--     # genes_keep <- as.matrix(keep[keep==TRUE]) -->
+<!--     # genes_keep <- data.frame(Gene = rownames(genes_keep), Value = genes_keep[,1]) -->
+
+<!-- ``` -->
+
+
+
+<!-- ### Experiment 2: Evaluate Variation Between Replicates -->
+<!-- ```{r Exp 2a. } -->
+
+<!-- ``` -->
+
+<!-- ```{r Exp 2a. Evaluate consistency between replicate samples} -->
+<!-- ## Make an MDS plot to visualise relationships between replicate samples -->
+<!-- par(mfrow = c(1, 3)) -->
+<!-- plotMDS(dge, main = "Larger screen: MDS Plot") -->
+
+<!-- # Begin differential representation analysis We will use GLMs in edgeR in this case since -->
+<!-- # the experimental design is a time course with changes expected over time i.e. model is y -->
+<!-- # = intercept + slope*time Set up design matrix for GLM -->
+<!-- des = model.matrix(~dge$samples$group) # Uncomment to evaluate variation between FACS groups -->
+<!-- des -->
+<!-- colnames(des)[2] = "Slope" -->
+<!-- # Estimate dispersions -->
+<!-- xglm = estimateDisp(dge, des) -->
+<!-- sqrt(xglm$common.disp) -->
+
+<!-- # Plot BCVs versus abundance -->
+<!-- plotBCV(xglm, main = "Larger screen: BCV Plot") -->
+<!-- # Fit negative bionomial GLM -->
+<!-- fit = glmFit(xglm, des) -->
+<!-- # Carry out Likelihood ratio test -->
+<!-- lrt = glmLRT(fit, coef = 2) -->
+<!-- # Show top ranked sgRNAs from the LRT -->
+<!-- topTags(lrt) -->
+
+<!-- # Fit quasi-likelihood GLM -->
+<!-- QL_fit <- glmQLFit(dge, des) -->
+<!-- # Carry out quasi-likelihood ratio test -->
+<!-- qlf <- glmQLFTest(QL_fit, coef = 2) -->
+<!-- # Show top ranked sgRNAs -->
+<!-- topTags(qlf) -->
+<!-- # Select hairpins with FDR < 0.05 to highlight on plot -->
+<!-- thresh = 0.005 -->
+<!-- top3 = topTags(lrt, n = Inf) -->
+<!-- top3ids = top3$table[top3$table$FDR < thresh, 1] -->
+
+<!-- # Plot Slope versus logCPM -->
+<!-- plotSmear(lrt, de.tags = top3ids, pch = 20, cex = 0.6, main = "Larger screen: Slope vs logCPM") -->
+<!-- abline(h = c(-1, 0, 1), col = c("dodgerblue", "yellow", "dodgerblue"), lty = 2) -->
+
+<!-- ``` -->
+
+
+<!-- # Experiment 3 - set manual filter to only retain sgRNAs with at least 0.5 counts per million in at least 3 samples and plot the overall number of reads per sample and hairpin in a barplot. Counts per million are used as these values are standardised for systematic differences in the amount of sequencing between different samples, which can be subtantial -->
+<!-- ```{r} -->
+
+<!-- # Filter hairpins with low counts -->
+<!-- sel = rowSums(cpm(dge$counts) > 0.5) >= 3 -->
+<!-- dge_selected = dge[sel, ] -->
+
+<!-- # Plot number of hairpins that could be matched per sample -->
+<!-- par(mfrow = c(2, 1)) -->
+<!-- barplot(colSums(dge_selected$counts), las = 2, main = "Counts per index", cex.names = 0.5, cex.axis = 0.8, ylim = c(0, 2e+07)) -->
+<!-- # Select hairpins from plates run in this screen -->
+<!-- sample_info = dge_selected$samples$group -->
+
+<!-- selhp = sample_info == "High" | sample_info == "Low" -->
+<!-- # Plot per hairpin totals across all samples -->
+<!-- barplot(rowSums(dge_selected$counts[selhp, ]), las = 2, main = "Counts per hairpin", cex.names = 0.5, -->
+<!-- cex.axis = 0.8, ylim = c(0, 1500000)) -->
+<!-- ``` -->
+
+
+<!-- ```{r Scratch space} -->
+
+<!-- # Was working through the code below, but thought that another tutorrial would be more helpful since it was on large screens -->
+
+<!-- # Evaluate Variation Between Replicates - Evaluate consistency between replicate samples -------- -->
+<!-- # Create a design matrix for GLM analysis -->
+<!-- # Estimate and plot sgRNA variation -->
+<!-- # Make an MDS plot to visualise relationships between replicate samples -->
+<!-- # par(mfrow = c(1, 3)) -->
+<!-- # plotMDS(dge, labels = dge$samples$group, col = rep(1:6, times = 3), main = "Another small screen: MDS Plot") -->
+<!-- # legend("topright", legend = c("Low 1", "Low 2", "Low 3", "High 1", "High 2", "High 3"), col = 1:6, pch = 15) -->
+<!-- # -->
+<!-- # # Begin differential representation analysis We will use GLMs in edgeR in this case since -->
+<!-- # # there are more than 2 groups Set up design matrix for GLM -->
+<!-- # des = model.matrix(~dge$samples$group) -->
+<!-- # des -->
+
+<!-- # Subset sgRNAs and samples relevant to the "low" group -->
+
+<!-- ``` -->
+
+
+<!-- # TODO Try running edgeR on cat parsed files (combine recombinants with hits) -->
+<!-- # TODO Try running edgeR on parsed recombinant files -->
+<!-- # TODO: Beyond edgeR - group NTC guides as neg ctrls, thus the sgRNA totals across all samples for NTC should be significantly higher than other bars -->
+<!-- ```{r} -->
+<!-- # Try the exact block above but set the sgRNA column to the gene for unique identificaiton -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- # Inspect current data type -->
+<!-- class(raw_counts) -->
+<!-- str(raw_counts) -->
+
+
+<!-- # Assuming the first column contains gene names -->
+<!-- count_matrix <- as.matrix(raw_counts[, -1:-2])  # Exclude the first column if it has gene names -->
+<!-- rownames(count_matrix) <- raw_counts[, 1]    # Set the gene names as rownames -->
+
+<!-- ``` -->
+
+<!-- ## Read alignment/processing -->
+
+<!-- ## Count loading and annotation -->
+
+<!-- ## Filtering and normalization -->
+
+<!-- We next filter out sgRNAs and samples with low numbers of reads. Need a CPM greater than 5 in 15 or more samples to keep sgRNAs, and at least 100,000 reads to keep a given sample. -->
+
+<!-- ### Data exploration -->
+
+<!-- ```{r volcano plot of original sgRNA file, echo=FALSE} -->
+
+<!-- ``` -->
+
+<!-- ### Design matrix -->
+
+<!-- ### Dispersion estimation -->
+
+<!-- ```{r} -->
+<!-- #| echo: false -->
+
+<!-- # Try using edgeR -->
+
+<!-- library(edgeR) -->
+<!-- library(dplyr) -->
+
+<!-- # load data -->
+<!-- raw_counts <- read.delim("/Users/Claire/Library/CloudStorage/Box-Box/MSTP Research Rotations/Summer_2024_Might_Ward_Lab/CRISPRi_alg_optimization/00_references_and_code/files_from_others/00_JH/01_data/00_processed_data/00_mageck_counts/counts/all.count.txt", sep = "\t", header = TRUE) -->
+
+
+<!-- # TODO: handle duplicate gene names -->
+<!-- unique_genes_df <- raw_counts %>% -->
+<!-- group_by(Gene) %>% -->
+<!--   filter(n() == 1) %>% -->
+<!--   ungroup() -->
+
+<!-- rownames(unique_genes_df) <- as.character(unique_genes_df$Gene) -->
+<!-- # unique_genes_df$Gene<-NULL -->
+<!-- mygroups <- c("Low1","Low1","Low1","High1","High1","High1") -->
+
+<!-- y <- DGEList(counts=unique_genes_df, genes=rownames(unique_genes_df), group = mygroups) -->
+<!-- # Filtering and normalization -->
+<!-- # There is no purpose in analysing genes that are not expressed in either experimental condition, so genes are first filtered on expression levels. -->
+<!-- keep <- filterByExpr(y) -->
+<!-- table(keep) -->
+<!-- y <- y[keep, , keep.lib.sizes=FALSE] -->
+<!-- y <- normLibSizes(y) -->
+<!-- plotMDS(y, col=rep(1:2, each=3)) -->
+<!-- # Distances on an MDS plot of a DGEList object correspond to leading log-fold-change qbetween each pair of samples. Leading log-fold-change is the root-mean-square average of the largest log2-fold-changes between each pair of samples. Each pair of samples extracted at each time tend to cluster together, suggesting a batch effect. The hrcc treated samples tend to be below the mock samples for each time, suggesting a treatment effect within each time. The two samples at time 1 are less consistent than at times 2 and 3. -->
+
+<!-- y <- calcNormFactors(y) -->
+<!-- y <- estimateDisp(y) -->
+<!-- et <- exactTest(y) -->
+
+<!-- result_edgeR <- as.data.frame(topTags(et, n=nrow(unique_genes_df))) -->
+
+<!-- table(result_edgeR$FDR < 0.05) -->
+<!-- plot(result_edgeR$logFC, -log10(result_edgeR$FDR), col=ifelse(result_edgeR$FDR<0.05,"red","black"),main="FDR volcano plot",xlab="log2FC",ylab="-log10(FDR)") -->
+<!-- text(result_edgeR$logFC, -log10(result_edgeR$FDR), labels=result_edgeR$sgRNA) -->
+<!-- hist(result_edgeR$PValue, breaks=20, xlab="P-Value", col="royalblue", ylab="Frequency", main="P-value distribution") -->
+
+<!-- ``` -->
+
+<!-- # EdgeR on STMN2 Screen -->
+
+<!-- Goal of this file is to test run the STMN2 screen through the edgeR library in RStudio. The edgeR library is more versatile with user/experimental specifications, but requires a better understanding of the code and functions. -->
+
+<!-- ## Setup -->
+<!-- ```{r Install and load the required packages, echo=FALSE, message=FALSE, warning=FALSE} -->
+<!-- if (!require("BiocManager", quietly = TRUE)) install.packages("BiocManager") -->
+<!-- BiocManager::install("edgeR") -->
+<!-- BiocManager::install("GenomicAlignments") -->
+<!-- BiocManager::install("Rsubread") -->
+<!-- BiocManager::install("Biostrings") -->
+<!-- BiocManager::install("AnnotationDbi") -->
+<!-- BiocManager::install("org.Hs.eg.db") -->
+<!-- install.packages("ggplot2") -->
+<!-- install.packages("DT") -->
+<!-- install.packages("ggrepel") -->
+<!-- install.packages("RColorBrewer") -->
+<!-- BiocManager::install("GO.db") -->
+
+<!-- library(edgeR) -->
+<!-- library(GenomicAlignments) -->
+<!-- library(Rsubread) -->
+<!-- library(Biostrings) -->
+<!-- library(AnnotationDbi) -->
+<!-- library(org.Hs.eg.db) -->
+<!-- library(ggplot2) -->
+<!-- library(DT) -->
+<!-- library(ggrepel) -->
+<!-- library(RColorBrewer) -->
+<!-- library(GO.db) -->
+<!-- ``` -->
+<!-- ## Create Necessary Directories -->
+
+<!-- ```{r echo=FALSE, message=FALSE} -->
+<!-- dir.create("./index") -->
+<!-- dir.create("./RData") -->
+<!-- dir.create("./tables") -->
+<!-- dir.create("./figures") -->
+<!-- ``` -->
+
+<!-- ## Counting the sgRNAs with RSubread -->
+
+<!-- To count the sgRNAs, we must first load the human dual-guide sgRNA library, and subsequently, convert it into the FASTA format to construct an index for alignment. To do that we use `DNAStringSet` and `writeXStringSet` functions from `GenomicAlignments` Bioconductor package. -->
+
+<!-- ```{r, echo=FALSE, message=FALSE} -->
+
+<!-- guide_library <- read.delim("library/20200513_library_1_2_unbalanced_dJR051_simpleRmG.txt") -->
+
+<!-- # Re-order columns -->
+<!-- guide_library <- guide_library %>% dplyr::select(Gene, id, gRNA.sequence) -->
+<!-- guide_library[1:2 ,] -->
+
+<!-- sgRNAs <- Biostrings::DNAStringSet(guide_library$gRNA.sequence) -->
+<!-- names(sgRNAs) <- guide_library$id -->
+<!-- sgRNAs -->
+
+<!-- Biostrings::writeXStringSet(sgRNAs, file = "./index/library.fa") -->
+<!-- ``` -->
+
+<!-- ## Build an index -->
+
+<!-- Build an index of sgRNA library with `buildindex` function from `RSubread` package -->
+
+<!-- ```{r, echo=FALSE} -->
+
+<!-- Rsubread::buildindex("./index/library", "./index/library.fa", indexSplit = FALSE) -->
+<!-- ``` -->
+
+<!-- ## Align the FASTQ files -->
+
+<!-- Next step is to align the sequencing files with `align` function from `RSubread` and count the reads with `readGAlignments` function in `GenomicAlignments`. -->
+
+<!-- The subsequent phase involves aligning the sequencing files ([FASTQ files](https://github.com/goknurginer/Analysing-CRISPR-screens-with-edgeR/tree/main/fasqfiles)) using the `align` function from `RSubread` and counting the reads for each sgRNA using the `readGAlignments` function in `GenomicAlignments`. -->
+
+<!-- ```{r} -->
+<!-- fastqs <- dir(path = "./fastq_files", pattern = "*.fastq.gz", full.names = TRUE) -->
+<!-- counts <- list() -->
+<!-- mapping_results <- list() -->
+<!-- for (i in 1:length(fastqs)) { -->
+<!--     mapping_results[[i]] <- align("./index/GeCKO", fastqs[i], output_file = gsub(".fastq.gz", -->
+<!--         ".bam", fastqs[i]), nthreads = 4, unique = TRUE, nBestLocations = 1, type = "DNA", -->
+<!--         TH1 = 1, maxMismatches = 0, indels = 0) -->
+<!--     temp <- readGAlignments(gsub(".fastq.gz", ".bam", fastqs[i])) -->
+<!--     counts[[i]] <- data.frame(table(seqnames(temp[width(temp) == "20"])), row.names = "Var1") -->
+<!-- } -->
+<!-- my_counts <- do.call(cbind, counts) -->
+<!-- colnames(my_counts) <- c("Control_1", "Control_2", "ToxA_1", "ToxA_2", "ToxB_1", -->
+<!--     "ToxB_2") -->
+<!-- write.table(my_counts, "my_counts.txt") -->
+<!-- ``` -->
+
+<!-- ## Try processAmplicons function -->
+
+<!-- ```{r} -->
+<!-- library(edgeR) -->
+<!-- edgeR::processAmplicons(readfile = "hits.JH8105_1_S1_L001_R1_001.fastq", readfile2 = "hits.JH8105_1_S1_L001_R2_001.fastq" ) -->
+<!-- ``` -->
+
+<!-- **Note: `processAmplicons` requires multiplexed FASTQ files....** -->
+
+<!-- # QC of FASTQ Files -->
+
+<!-- ```{r} -->
+<!-- # Install and load required packages -->
+<!-- if (!requireNamespace("BiocManager", quietly = TRUE)) -->
+<!--     install.packages("BiocManager") -->
+<!-- BiocManager::install(c("ShortRead", "fastqcr")) -->
+
+<!-- library(ShortRead) -->
+<!-- library(fastqcr) -->
+
+<!-- # Define the path to your FASTQ files -->
+<!-- fastq_path <- "/Users/claireps/Desktop/CRISPR_dual-guide_20240820/2_seqs_post_parsing/seqs_post_cat" -->
+
+<!-- # List all FASTQ files -->
+<!-- fastq_files <- list.files(fastq_path, pattern = "*.fastq.gz$", full.names = TRUE) -->
+
+<!-- # Run FastQC on all FASTQ files -->
+<!-- fastqc(fq.dir = fastq_path, qc.dir = "qc_results") -->
+
+<!-- # Aggregate QC results -->
+<!-- qc <- qc_aggregate("qc_results") -->
+
+<!-- # View QC summary -->
+<!-- qc_summary(qc) -->
+
+<!-- ``` -->
+
+<!-- # Preprocessing and Trimming Reads - assume that parser file does this -->
+
+<!-- ```{r} -->
+<!-- # Install and load the Cutadapt tool via the 'cutadapt' package -->
+<!-- # Since Cutadapt is not available in R, use system calls or external tools -->
+<!-- # Example using the 'system' command in R -->
+
+<!-- # Define adapter sequences (modify according to your data) -->
+
+<!-- # TODO: What is the adapter sequence? -->
+<!-- adapter_seq <- "AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC" -->
+
+<!-- # Loop through FASTQ files and trim adapters -->
+<!-- for (fq_file in fastq_files) { -->
+<!--   trimmed_fq <- sub(".fastq.gz$", "_trimmed.fastq.gz", fq_file) -->
+<!--   system(paste("cutadapt -a", adapter_seq, "-o", trimmed_fq, fq_file)) -->
+<!-- } -->
+
+<!-- ``` -->
+
+<!-- # **Extracting Guide RNA Sequences** -->
+
+<!-- ```{r} -->
+<!-- # Load Biostrings for sequence manipulation -->
+<!-- BiocManager::install("Biostrings") -->
+<!-- library(Biostrings) -->
+
+<!-- # Define guide RNA position -->
+<!-- guide_start <- 21    # Starting position (adjust as needed) -->
+<!-- guide_length <- 20   # Length of the gRNA -->
+
+<!-- extract_guides <- function(fastq_file, guide_start, guide_length) { -->
+<!--   # Read FASTQ file -->
+<!--   fq <- readFastq(fastq_file) -->
+
+<!--   # Extract sequences -->
+<!--   seqs <- sread(fq) -->
+
+<!--   # Extract guide sequences -->
+<!--   guides <- subseq(seqs, start = guide_start, width = guide_length) -->
+
+<!--   # Convert to character vector -->
+<!--   as.character(guides) -->
+<!-- } -->
+
+<!-- # Apply the function to all trimmed FASTQ files -->
+<!-- trimmed_fastq_files <- list.files(fastq_path, pattern = "_trimmed.fastq.gz$", full.names = TRUE) -->
+<!-- guide_sequences <- lapply(trimmed_fastq_files, extract_guides, guide_start, guide_length) -->
+
+<!-- # Name the list elements with sample names -->
+<!-- names(guide_sequences) <- basename(trimmed_fastq_files) -->
+
+<!-- ``` -->
+
+<!-- # **Mapping Guides to Reference Library** -->
+
+<!-- ```{r} -->
+<!-- # Load your guide RNA reference library -->
+<!-- # Assuming a CSV file with 'GuideSeq' and 'GuideID' columns -->
+<!-- guide_library <- read.delim("/Users/claireps/Desktop/CRISPR_dual-guide_20240820/0_references_and_code/library_design/20200513_library_1_2_unbalanced_dJR051_simpleRmG[70].txt", sep = "\t", stringsAsFactors = FALSE) -->
+
+<!-- # Create a named vector for guide sequences -->
+<!-- guide_reference <- setNames(guide_library$id, guide_library$gRNA.sequence) -->
+
+<!-- # Create a function to map and count guides -->
+<!-- count_guides <- function(guides, guide_reference) { -->
+<!--   # Match guides to reference -->
+<!--   matched_guides <- guide_reference[guides] -->
+
+<!--   # Remove NA values (unmatched guides) -->
+<!--   matched_guides <- matched_guides[!is.na(matched_guides)] -->
+
+<!--   # Count occurrences -->
+<!--   guide_counts <- table(matched_guides) -->
+
+<!--   # Return as a named vector -->
+<!--   as.integer(guide_counts) -->
+<!-- } -->
+
+<!-- # Apply the counting function to each sample -->
+<!-- counts_list <- lapply(fastq_files, count_guides, guide_reference) -->
+
+<!-- # Create a count matrix -->
+<!-- guide_ids <- unique(unlist(lapply(counts_list, names))) -->
+<!-- count_matrix <- do.call(cbind, lapply(counts_list, function(x) { -->
+<!--   counts <- setNames(x, names(x)) -->
+<!--   counts[guide_ids] <- counts[guide_ids] -->
+<!--   counts -->
+<!-- })) -->
+<!-- rownames(count_matrix) <- guide_ids -->
+<!-- colnames(count_matrix) <- names(counts_list) -->
+
+<!-- # Replace NAs with zeros -->
+<!-- count_matrix[is.na(count_matrix)] <- 0 -->
+<!-- ``` -->
+
+<!-- # **Counting Reads per Guide** -->
+
+<!-- # **Differential Abundance Analysis** -->
+
+<!-- # **Mapping Guides to Genes and Interpretation** -->
+
+<!-- ```{r} -->
+<!-- rawdata <- read.delim("/Users/claireps/Downloads/count-selected/all.count.txt", sep = "\t", check.names=FALSE, stringsAsFactors=FALSE) -->
+<!-- normdata <- read.delim("/Users/claireps/Downloads/count-selected/all.count_normalized.txt", sep = "\t", check.names=FALSE, stringsAsFactors=FALSE) -->
+
+<!-- head(rawdata) -->
+<!-- str(rawdata) -->
+<!-- # Looks like the columns with the counts are a character, need to convert to numeric type -->
+
+<!-- # Specify the columns you want to convert -->
+<!-- cols_to_convert <- c("Low_rep1", "Low_rep2", "Low_rep3", "High_rep1", -->
+<!-- "High_rep2", "High_rep3") -->
+
+<!-- # Convert specified columns to numeric -->
+<!-- rawdata[cols_to_convert] <- lapply(rawdata[cols_to_convert], as.numeric) -->
+<!-- normdata[cols_to_convert] <- lapply(normdata[cols_to_convert], as.numeric) -->
+
+<!-- # Loop through each numeric column and create a histogram -->
+<!-- for (col in names(df)) { -->
+<!--   if (is.numeric(df[[col]])) { -->
+<!--     hist(df[[col]], main = paste("Histogram of", col), xlab = col, col = "skyblue") -->
+<!--   } -->
+<!-- } -->
+
+<!-- # Count the number of 0 values in each column -->
+<!-- zero_count_per_column <- sapply(rawdata, function(x) sum(x == 0, na.rm = TRUE)) -->
+<!-- norm.zero_count_per_column <- sapply(normdata, function(x) sum(x == 0, na.rm = TRUE)) -->
+
+<!-- # View the result -->
+<!-- zero_count_per_column -->
+<!-- norm.zero_count_per_column -->
+<!-- # Total number of 0 values in the entire dataframe -->
+<!-- total_zero_count <- sum(df == 0) -->
+
+
+<!-- # TODO: remove zeros from sgRNA column -->
+<!-- # TODO: remove zeros from Gene column -->
+
+<!-- remove_zeros <- function(df) { -->
+<!--   # Use rowSums to check for zeros or NAs in each row and keep rows without them -->
+<!--   df_clean <- df[rowSums(df == 0) == 0, ] -->
+<!--   return(df_clean) -->
+<!-- } -->
+<!-- remove_NA <- function(df) { -->
+<!--   # Use rowSums to check for zeros or NAs in each row and keep rows without them -->
+<!--   df_clean <- df[rowSums(is.na(df)) == 0, ] -->
+<!--   return(df_clean) -->
+<!-- } -->
+<!-- remove_zeros_and_NA <- function(df) { -->
+<!--   # Use rowSums to check for zeros or NAs in each row and keep rows without them -->
+<!--   df_clean <- df[rowSums(df == 0 | is.na(df)) == 0, ] -->
+<!--   return(df_clean) -->
+<!-- } -->
+<!-- df_no_zero <- remove_zeros(rawdata) -->
+<!-- df_no_NA <- remove_NA(rawdata) -->
+<!-- df_clean <- remove_zeros_and_NA(rawdata) -->
+
+<!-- # View the total count -->
+<!-- total_zero_count -->
+<!-- library(edgeR) -->
+<!-- y <- DGEList(counts=df_clean[,3:8], genes=df_clean[,1:2]) -->
+<!-- ``` -->
+
+<!-- # Try from the edgeR User Documentation File -->
+
+<!-- ## Import and Sequence Processing -->
+
+<!-- ```{r seq processing, echo=FALSE} -->
+<!-- library(edgeR) -->
+<!-- library(dplyr) -->
+<!-- sgrna_counts <- read.delim("/Users/claireps/Desktop/dual_guide_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/count/all.count.txt", sep = "\t") -->
+
+<!-- sgrna_counts[,3:8] <- lapply(sgrna_counts[,3:8], as.numeric) -->
+
+<!-- # Specify the columns you want to convert -->
+<!-- cols_to_convert <- c("Low_rep1", "Low_rep2", "Low_rep3", "High_rep1", -->
+<!-- "High_rep2", "High_rep3") -->
+
+<!-- # Convert specified columns to numeric -->
+<!-- rawdata[cols_to_convert] <- lapply(rawdata[cols_to_convert], as.numeric) -->
+
+<!-- # Loop through each numeric column and create a histogram -->
+<!-- for (col in names(df)) { -->
+<!--   if (is.numeric(df[[col]])) { -->
+<!--     hist(df[[col]], main = paste("Histogram of", col), xlab = col, col = "skyblue") -->
+<!--   } -->
+<!-- } -->
+<!-- ``` -->
+
+<!-- ### Get Summary Statistics from the Counts File -->
+
+<!-- ```{r} -->
+
+<!-- summary.data.frame(sgrna_counts) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- counts.matrix <- lapply(sgrna_counts[,3:8], as.numeric) -->
+<!-- output <- matrix(unlist(counts.matrix), ncol = 6, byrow = TRUE) -->
+
+
+<!-- genes <- sgrna_counts %>% -->
+<!--   dplyr::select(sgRNA, Gene) -->
+<!-- genes <- base::as.data.frame(genes) -->
+<!-- ``` -->
+
+<!-- The `processAmplicons` function requires a barcode and a hairpin file. Because I don't know what a barcode file is, i will bypass this step and use the count table output from the MAGeCK algorithm. -->
+
+<!-- ## Count loading and annotation -->
+
+<!-- ```{r, echo=FALSE} -->
+<!-- DGEList(counts = output, genes = genes) -->
+
+<!-- ``` -->
+
+
+<!-- # Ignore - from Biostats -->
+<!-- ```{r} -->
+<!-- # Set the seed for reproducibility -->
+<!-- set.seed(123) -->
+
+<!-- # Generate data for hours of Netflix watched (between 0 to 20 hours per week) -->
+<!-- netflix_hours <- runif(100, min = 0, max = 20) -->
+
+<!-- # Simulate a negative correlation between Netflix hours and number of workouts -->
+<!-- # For simplicity, assume that the number of workouts decreases as Netflix hours increase -->
+<!-- workouts <- round(15 - 0.5 * netflix_hours + rnorm(100, mean = 0, sd = 2), 0) -->
+
+<!-- # Ensure that the number of workouts is non-negative -->
+<!-- workouts[workouts < 0] <- 0 -->
+
+<!-- # Create a data frame -->
+<!-- data <- data.frame( -->
+<!--   Netflix_Hours = netflix_hours, -->
+<!--   Workouts_Completed = workouts -->
+<!-- ) -->
+
+<!-- # Show the first few rows of the data -->
+<!-- head(data) -->
+
+<!-- # Optionally, visualize the relationship -->
+<!-- plot(data$Netflix_Hours, data$Workouts_Completed, -->
+<!--      xlab = "Hours of Netflix Watched", -->
+<!--      ylab = "Number of Workouts Completed", -->
+<!--      main = "Relationship Between Netflix Hours and Workouts Completed", -->
+<!--      pch = 19) -->
+<!-- abline(lm(Workouts_Completed ~ Netflix_Hours, data = data), col = "red") -->
+<!-- stats::cor.test(data$Workouts_Completed, data$Netflix_Hours) -->
+
+<!-- ``` -->
+
