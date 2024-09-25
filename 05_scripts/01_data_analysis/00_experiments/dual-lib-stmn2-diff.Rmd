@@ -1,0 +1,203 @@
+---
+title: "Test Differences Between STMN2 MAGeCK Experiments"
+output: html_notebook
+---
+
+# Test difference between three groups
+```{r setup, echo=FALSE}
+library(tidyverse)
+library(ggplot2)
+
+# Import Original Count Data - from JH with v8 parser
+jh.count.summary <- read.delim("/Users/claireps/CRISPRi_alg_optimization/JH/01_data/00_processed_data/00_mageck_counts/counts/all.countsummary.txt", sep = "\t")
+jh.raw.counts <- read.delim("/Users/claireps/CRISPRi_alg_optimization/JH/01_data/00_processed_data/00_mageck_counts/counts/all.count.txt", sep = "\t")
+jh.norm.count <- read.delim("/Users/claireps/CRISPRi_alg_optimization/JH/01_data/00_processed_data/00_mageck_counts/counts/all.count_normalized.txt", sep = "\t")
+jh.sgrna <- read.delim("/Users/claireps/CRISPRi_alg_optimization/JH/01_data/00_processed_data/01_recom_data/rra-High-Low-STMN2.sgrna_summary.txt", sep = "\t")
+jh.gene <- read.delim("/Users/claireps/CRISPRi_alg_optimization/JH/01_data/00_processed_data/01_recom_data/rra-High-Low-STMN2.gene_summary.txt", sep = "\t")
+jh.gene[ , 2:14] <- base::lapply(jh.gene[ , 2:14], as.numeric)
+
+# Import Kory's Count Data - from Kory (NINDS)
+kory.count.summary <- read.delim("/Users/claireps/CRISPRi_alg_optimization/NINDS/CRISPR_Project_20240820/3_mageck_vispr_analysis/count/all.countsummary.txt", sep = "\t")
+kory.raw.counts <- read.delim("/Users/claireps/CRISPRi_alg_optimization/NINDS/CRISPR_Project_20240820/3_mageck_vispr_analysis/count/all.count.txt", sep = "\t")
+kory.norm.count <- read.delim("/Users/claireps/CRISPRi_alg_optimization/NINDS/CRISPR_Project_20240820/3_mageck_vispr_analysis/count/all.count_normalized.txt", sep = "\t")
+kory.sgrna <- read.delim("/Users/claireps/CRISPRi_alg_optimization/NINDS/CRISPR_Project_20240820/3_mageck_vispr_analysis/test/High_vs_Low.sgrna_summary.txt", sep = "\t")
+kory.gene <- read.delim("/Users/claireps/CRISPRi_alg_optimization/NINDS/CRISPR_Project_20240820/3_mageck_vispr_analysis/test/High_vs_Low.gene_summary.txt", sep = "\t")
+
+# New Analysis - countpair = false, from v10 parser ----
+new.count.summary <- read.delim("/Users/claireps/CRISPRi_alg_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/count/all.countsummary.txt", sep = "\t")
+new.raw.count <- read.delim("/Users/claireps/CRISPRi_alg_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/count/all.count.txt", sep = "\t")
+new.raw.count <- new.raw.count %>% 
+  dplyr::rename("Low_1" = "Low_rep1",
+                "Low_2" = "Low_rep2",
+                "Low_3" = "Low_rep3",
+                "High_1" = "High_rep1",
+                "High_2" = "High_rep2",
+                "High_3" = "High_rep3")
+new.raw.count[ , 3:ncol(new.raw.count)] <- base::lapply(new.raw.count[ , 3:ncol(new.raw.count)], as.numeric)
+new.norm.count <- read.delim("/Users/claireps/CRISPRi_alg_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/count/all.count_normalized.txt", sep = "\t")
+new.norm.count <- new.norm.count %>% 
+  dplyr::rename("Low_1" = "Low_rep1",
+                "Low_2" = "Low_rep2",
+                "Low_3" = "Low_rep3",
+                "High_1" = "High_rep1",
+                "High_2" = "High_rep2",
+                "High_3" = "High_rep3")
+new.norm.count[ , 3:ncol(new.raw.count)] <- base::lapply(new.norm.count[ , 3:ncol(new.norm.count)], as.numeric)
+new.sgrna <- read.delim("/Users/claireps/CRISPRi_alg_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/test/High_vs_Low.sgrna_summary.txt", sep = "\t")
+new.sgrna[ , 5:14] <- base::lapply(new.sgrna[ , 5:14], as.numeric)
+
+new.gene <- read.delim("/Users/claireps/CRISPRi_alg_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/test/High_vs_Low.gene_summary.txt", sep = "\t")
+new.gene[ , 2:14] <- base::lapply(new.gene[ , 2:14], as.numeric)
+
+```
+
+```{r}
+# Compare line differences between JH and Kory
+# Function to compare two data frames and return mismatched rows
+# compare_dataframes <- function(df1, df2) {
+#   # Ensure that both dataframes have the same dimensions
+#   if (!all(dim(df1) == dim(df2))) {
+#     stop("Dataframes must have the same dimensions for comparison.")
+#   }
+#   
+#   # Exclude the first column for comparison
+#   df1_sub <- df1[, -1]
+#   df2_sub <- df2[, -1]
+#   
+#   # Find the rows where the data do not match
+#   non_matching_rows <- apply(df1_sub != df2_sub, 1, any)
+#   
+#   # Return the rows from both dataframes where there is a mismatch
+#   result_df1 <- df1[non_matching_rows, ]
+#   result_df2 <- df2[non_matching_rows, ]
+#   
+#   # Return a list containing the mismatched rows from both dataframes
+#   return(list(mismatched_rows_df1 = result_df1, mismatched_rows_df2 = result_df2))
+# }
+
+compare_dataframes <- function(df1, df2) {
+  # Ensure the dataframes have more than one column
+  if (ncol(df1) < 2 | ncol(df2) < 2) {
+    stop("Both dataframes must have at least two columns.")
+  }
+
+  # Ignore the first column in both dataframes
+  df1_subset <- df1[, -1]
+  df2_subset <- df2[, -1]
+  
+  # Get the number of rows in both dataframes
+  n_rows_df1 <- nrow(df1_subset)
+  n_rows_df2 <- nrow(df2_subset)
+  
+  # Find rows that don't match
+  unmatched_in_df1 <- setdiff(df1_subset, df2_subset)
+  unmatched_in_df2 <- setdiff(df2_subset, df1_subset)
+  
+  # If the dataframes have different numbers of rows, report the extra rows
+  if (n_rows_df1 != n_rows_df2) {
+    cat("The dataframes have different number of rows:\n")
+    cat("Rows in df1 but not in df2:\n")
+    print(unmatched_in_df1)
+    cat("\nRows in df2 but not in df1:\n")
+    print(unmatched_in_df2)
+  } else {
+    if (nrow(unmatched_in_df1) == 0 & nrow(unmatched_in_df2) == 0) {
+      cat("All rows match between the dataframes.\n")
+    } else {
+      cat("Rows in df1 but not in df2:\n")
+      print(unmatched_in_df1)
+      cat("\nRows in df2 but not in df1:\n")
+      print(unmatched_in_df2)
+    }
+  }
+  
+  # Return the unmatched rows as a list
+  return(list(unmatched_in_df1 = unmatched_in_df1, unmatched_in_df2 = unmatched_in_df2))
+}
+
+
+compare_by_first_column <- function(df1, df2) {
+  # Ensure both dataframes have at least one column
+  if (ncol(df1) < 1 | ncol(df2) < 1) {
+    stop("Both dataframes must have at least one column.")
+  }
+
+  # Ensure both dataframes have the same columns (except the first column)
+  if (!all(names(df1)[-1] == names(df2)[-1])) {
+    stop("The two dataframes must have the same column names after the first column.")
+  }
+
+  # Merge dataframes based on the first column to align rows with the same ID
+  merged_df <- merge(df1, df2, by = "V1", suffixes = c("_df1", "_df2"), all = TRUE)
+
+  # Create a logical matrix to check for differences in subsequent columns
+  compare_cols <- names(df1)[-1]  # exclude the first column for comparison
+  diffs <- sapply(compare_cols, function(col) {
+    merged_df[[paste0(col, "_df1")]] != merged_df[[paste0(col, "_df2")]]
+  })
+
+  # Combine the logical columns (differences) and select only rows with mismatches
+  row_diffs <- rowSums(diffs, na.rm = TRUE) > 0
+
+  # Return rows with differences and include both versions of the differing rows
+  return(merged_df[row_diffs, ])
+}
+# Compare the data frames
+jh.new.raw.count.compare <- compare_dataframes(jh.raw.counts, new.raw.count)
+jh.new.norm.count.compare <- compare_dataframes(jh.norm.count, new.norm.count)
+
+jh.new.sgrna.compare <- compare_dataframes(jh.sgrna, new.sgrna)
+jh.new.gene.compare <- compare_dataframes(jh.gene, new.gene)
+
+```
+### Compare Library Files
+```{r Compare libraries}
+jh.lib <- read.delim("/Users/claireps/CRISPRi_alg_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/library_1_2_unbalanced_dJR051.txt", sep = "\t")
+cp.lib <- read.delim("/Users/claireps/CRISPRi_alg_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/CP_library_20240822.csv", sep = ",")
+jh.ntc.lib <- read.delim("/Users/claireps/CRISPRi_alg_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/library_1_2_unbalanced_NegControlList.txt", sep = "\t")
+cp.ntc.lib <- read.delim("/Users/claireps/CRISPRi_alg_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/CP_non_target_library_20240822.txt", sep = "\t", header = FALSE)
+
+# Compare the libraries
+cp.lib$id %in% jh.lib$sgID_AB # Compare the guide ID
+# remove first letter from jh.lib$protospace_A column
+jh.lib$trimmed_protospacer_A <- substr(jh.lib$protospacer_A, 2, nchar(jh.lib$protospacer_A))
+cp.lib$gRNA.sequence %in% jh.lib$trimmed_protospacer_A  # Compare the guide sequence
+
+
+```
+
+```{r Create histographs for all count data}
+# Load necessary library for plotting
+library(ggplot2)
+
+# Function to create density plot with histogram bars for numeric columns using facet_wrap
+plot_density_with_histogram_facet <- function(df) {
+  # Check for numeric and integer columns
+  numeric_cols <- sapply(df, function(x) is.numeric(x) | is.integer(x))
+  
+  if (sum(numeric_cols) == 0) {
+    stop("The dataframe does not contain any numeric or integer columns.")
+  }
+  
+  # Reshape the dataframe into a long format for easier plotting with ggplot and facet_wrap
+  df_long <- reshape2::melt(df[, numeric_cols], variable.name = "variable", value.name = "value")
+  
+  # Create the plot
+  plot <- ggplot(df_long, aes(x = value)) +
+    geom_histogram(aes(y = after_stat(density)), binwidth = 30, color = "black", fill = "blue", alpha = 0.6) +
+    geom_density(color = "red", size = 1) +
+    facet_wrap(~variable, scales = "free") +
+    labs(x = "Value", y = "Density") +
+    ggtitle("Density Plots with Histogram Bars for Numeric Columns") +
+    theme_minimal()
+  
+  # Display the plot
+  print(plot)
+}
+
+plot_density_with_histogram_facet(jh.raw.counts)
+plot_density_with_histogram_facet(jh.norm.count)
+plot_density_with_histogram_facet(new.raw.count)
+plot_density_with_histogram_facet(new.norm.count)
+```
+
