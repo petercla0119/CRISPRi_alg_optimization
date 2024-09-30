@@ -32,7 +32,6 @@ source("~/CRISPRi_alg_optimization/05_scripts/01_data_analysis/00_experiments/cl
 # Import the original raw count data (from JH) from the STMN2 screen from the dual-guide (v8) parser script
 # jh_raw_counts <- read.delim("/Users/claireps/CRISPRi_alg_optimization/JH/01_data/00_processed_data/00_mageck_counts/counts/all.count.txt", sep = "\t", header = TRUE)
 # Import the raw count data from the MAGeCK count function output from the dual-guide (v10) parser script
-# raw_counts <- read.delim("/Users/claireps/CRISPRi_alg_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/count/all.count.txt", sep = "\t", header = TRUE)
 raw_counts <- read.delim("/Users/claireps/CRISPRi_alg_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/count/all.count_normalized.txt", sep = "\t", header = TRUE)
 
 # Import the count data from the MAGeCK count function output from the dual-guide (v10) parser script that Kory (NINDS bioinformatics) generated
@@ -76,48 +75,6 @@ base::summary(clean_raw_counts)
 
 ## Experiments
 
-<!-- # Check the Negative Binomial Model -->
-<!-- ```{r} -->
-<!-- library(DHARMa) -->
-<!-- norm_counts <- read.delim("/Users/claireps/CRISPRi_alg_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/count/all.count_normalized.txt", sep = "\t", header = TRUE) -->
-<!-- # Load Counts ---- -->
-<!-- # Convert the counts columns to numerics -->
-<!-- norm_counts[ , 3:ncol(norm_counts)] <- base::lapply(norm_counts[ , 3:ncol(norm_counts)], as.numeric) -->
-
-<!-- ## Remove zeros in the sgRNA or Gene column and recode 0s in other columns -->
-<!-- clean_norm_counts <- norm_counts %>% -->
-<!--   dplyr::filter(!sgRNA==0) %>% -->
-<!--   dplyr::filter(!Gene==0) %>% -->
-<!--   dplyr::mutate_all(~replace(., . == 0, 0.001)) -->
-
-<!-- ## Remove NA from raw_counts df -->
-<!-- no_na_norm_counts <- remove_na(clean_norm_counts) -->
-
-<!-- norm_counts_long <- no_na_norm_counts %>% -->
-<!--   rename(Low_1 = Low_rep1, -->
-<!--          Low_2 = Low_rep2, -->
-<!--          Low_3 = Low_rep3, -->
-<!--          High_1 = High_rep1, -->
-<!--          High_2 = High_rep2, -->
-<!--          High_3 = High_rep3) %>% -->
-<!--   pivot_longer(cols = -c(sgRNA, Gene), -->
-<!--                names_to = "sample", -->
-<!--                values_to = "counts") -->
-<!-- ``` -->
-<!-- Notes: NB model qqplot does **not** look normal -->
-<!-- ### Check dispersion -->
-<!-- ```{r} -->
-<!-- fig1a_nb_simulation_refit <- DHARMa::simulateResiduals(fittedModel = fig1a_nb, -->
-<!--                                                n = 250, -->
-<!--                                                refit = TRUE) -->
-<!-- fig1a_nb_simulation_dispersion <- DHARMa::testDispersion(fig1a_nb_simulation_refit) -->
-<!-- ``` -->
-<!-- ### Check zero inflation -->
-<!-- ```{r} -->
-<!-- fig1a_nb_test_zi <- DHARMa::testZeroInflation(fig1a_nb_simulation_refit) -->
-
-<!-- ``` -->
-
 ### Experiment 1: Try analysis after removing all zero and NA values
 
 #### 1.1 Reading in the data
@@ -143,10 +100,6 @@ dge$genes <- as.data.frame(dge$genes)
 dge$genes$sgrna_id <- as.matrix(clean_raw_counts[,1])
 
 print(dge)
-
-# # Create dge obj with numeric group coding - Experiment 1a - does coding by numeric matter? - Ans: No -----
-# # group <- c(1,1,1,2,2,2)
-# dge_num <- DGEList(counts = count_matrix, group = group)
 ```
 
 #### 1.2. Filtering and Normalization
@@ -155,33 +108,38 @@ print(dge)
 # Genes are only retained if they are expressed at a minimum level
 # The group factor or the experimental design matrix can also be given directly to the filterBy Expr function
 # TODO: what does a "minimum level" mean
-keep <- filterByExpr(dge, group = group)
-dge <- dge[keep, , keep.lib.sizes=FALSE]
+filterbyexpr_keep <- filterByExpr(dge, group = group)
+table(filterbyexpr_keep)
+dge_filterbyexpr <- dge[filterbyexpr_keep, ,keep.lib.sizes=FALSE]
+dge_filterbyexpr <- dge # Keep a copy of counts filtered by expression
+dge_filterbyexpr_ct <- nrow(dge$counts)
 
 # Exp 1.2.2. Filtering 2 ----
-# Filter out sgRNAs with at least 0.5 counts per million in at least 3 samples. Used CPM since values are standardized for systematic differences in the amount of sequencing between samples
-keep <- rowSums(cpm(dge$counts)>50)>=2
-table(keep)
-dge = dge[keep, ]
+# Filter out sgRNAs with at least 0.5 counts per million in at least 3 samples. Used CPM since values are standardized for systematic differences in the amount of sequencing between samples cpm function accounts for library differences
+filtermanual_keep <- rowSums(cpm(dge$counts)>5)>=2
+table(filtermanual_keep)
+dge <- dge[filtermanual_keep, ,keep.lib.sizes=FALSE] # This is the dge obj we will move forward with for subsequent analyses
+dge_filtermanual <- dge # Keep a copy of the counts filtered by manual threshold values
+dge_filtermanual_ct <- nrow(dge$counts)
 
+# Compare the number of genes retained after manual vs default filtering
+print(dge_filterbyexpr_ct - dge_filtermanual_ct) # dge_filterbyexpr is more permissive than dge_filtermanual
+length(base::setdiff(row.names(dge_filterbyexpr$counts), row.names(dge_filtermanual$counts)))
+dropped_genes <- base::setdiff(row.names(dge_filterbyexpr$counts), row.names(dge_filtermanual$counts))
 
+# Ensure STMN2 and TDP genes were not dropped
+"STMN2" %in% dropped_genes
+"TARBP1" %in% dropped_genes
 ```
 
 
 *From Analyzing data from pooled genetic sequencing screens using edgeR,* **Chapt 2** *Analysis of a small shRNA-seq screen*
 ```{r Exp 1.2.3 Plot Filtered sgRNAs}
-# The **dge** obj filtered with default `filterByExpr`, whereas the **dge_1b** obj was filtered with a manual filter - at least 0.5 counts per million in at least 3 samples
-# The **dge** obj has (`{r} I(nrow(dge$counts))`) rows, whereas the **dge_1b** obj has (`{r} I(nrow(dge_1b$counts))`) rows. Showing **`{r} I(length(base::setdiff(row.names(dge$counts), row.names(dge_1b$counts)))`** fewer genes are removed with the `filterByExpr` function from edgeR pkg. Specifically the genes that were dropped from the `dge` obj compared to the the `dge_1b` obj included: **`{r} I(base::setdiff(row.names(dge$counts), row.names(dge_1b$counts)))`**
-
-
-
 # Exp 1.2a. Plot Filtered sgRNAs ----
 # Set up drug treatment colors
 cols <- as.numeric(dge$samples$group) + 2
-# cols_1b <- as.numeric(dge_1b$samples$group) + 2
 
 # Plot number of hairpins that could be matched per sample and total for each hairpin across all samples
-# Plot number of hairpins that could be matched per sample
 barplot(colSums(dge$counts), 
         las=1, # Make x-axis text label horizontal
         main="Counts per index", sub = "From filterByExpr",
@@ -189,13 +147,6 @@ barplot(colSums(dge$counts),
 barplot(rowSums(dge$counts), las = 2, 
         main = "Counts per sgRNA", sub = "From filterByExpr",
         cex.names = 0.5, cex.axis = 0.8)
-# Plot number of hairpins that could be matched per sample and total for each hairpin across all samples
-# barplot(colSums(dge_1b$counts), las=1, 
-#         main="Counts per index", sub = "From at least 0.5 counts per million in at least 3 samples",
-#         col=cols, cedge.names=0.5, cedge.adgeis=0.8)
-# barplot(rowSums(dge_1b$counts), las = 2, 
-#         main = "Counts per sgRNA", sub = "From at least 0.5 counts per million in at least 3 samples",
-#         cex.names = 0.5, cex.axis = 0.8)
 ```
 ```{r Exp 1.2.4. I Verify Retainment of Genes of Interest}
 # I want to ensure TDP and STMN2 are kept for downstream analysis - if not, then useless ----
