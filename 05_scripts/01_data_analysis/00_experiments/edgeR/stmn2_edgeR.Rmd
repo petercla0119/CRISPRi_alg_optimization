@@ -21,6 +21,8 @@ execute:
 knitr::opts_chunk$set(echo = FALSE)
 knitr::opts_chunk$set(warning = FALSE)
 
+rm(list = ls()) # Clear environment
+
 # Install packages
 library(edgeR)
 library(dplyr)
@@ -116,7 +118,7 @@ dge_filterbyexpr_ct <- nrow(dge$counts)
 
 # Exp 1.2.2. Filtering 2 ----
 # Filter out sgRNAs with at least 0.5 counts per million in at least 3 samples. Used CPM since values are standardized for systematic differences in the amount of sequencing between samples cpm function accounts for library differences
-filtermanual_keep <- rowSums(cpm(dge$counts)>5)>=2
+filtermanual_keep <- rowSums(cpm(dge$counts)>10)>=2
 table(filtermanual_keep)
 dge <- dge[filtermanual_keep, ,keep.lib.sizes=FALSE] # This is the dge obj we will move forward with for subsequent analyses
 dge_filtermanual <- dge # Keep a copy of the counts filtered by manual threshold values
@@ -215,8 +217,7 @@ Options are *common dispersion*, *trended dispersion*, and *tagwise dispersion*.
 ```{r Exp 1.5.1 Dispersion estimation}
 # dge <- estimateDisp(dge, block_design_mat, robust = TRUE, tagwise = TRUE)
 # Estimate dispersion
-exp1.dge <- estimateDisp(dge, block_design_mat, tagwise = TRUE)
-# TODO: what does 'robust' argument due in estimateDisp
+exp1.dge <- estimateDisp(dge, block_design_mat)
 ```
 
 The square root of the common dispersion gives the coefficient of variation of the biological variation.
@@ -226,7 +227,7 @@ In the BCV plot below:
 * The red line represents the common dispersion estimate. It assumes all genes have the same biological variability.  
 * The blue line represents the trended dispersion estimate. It is the smoothed function of the relationship between the mean expression (log CPM) and the BCV.  
 
-**BCV Plot Observations**.   
+**BCV Plot Observations**   
 
 * High BCV at low expression levels: genes with lower expression levels (below log CPM=2) tend to have a higher BCV. Thereby, suggests that lowly expressed genes tend to have higher variability across replicates. Typical of as low counts are more prone to noise and stochastic variation.  
 * Lower BCV at higher expression levels: genes with highly expressed genes tend to have a lower BCV. Thereby, suggests that high gene expression levels tend to have more stable expression, with less biological variability. Typical as higher counts tend to be more robust and less susceptible to random fluctuations.  
@@ -237,55 +238,37 @@ plotBCV(exp1.dge, main = "STMN2 BCV Plot")
 
 
 #### 1.6. Differential Expression Analysis
-<!-- # ```{r Exp 1.6.1 Differential expression analysis} -->
-<!-- # # Likelihood ratio test for low vs high differences and show the top genes -->
-<!-- # fit <- glmFit(dge, block_design_mat) -->
-<!-- # ``` -->
-<!-- # ```{r} -->
-<!-- # lrt <- glmLRT(fit) -->
-<!-- # topTags(lrt) -->
-<!-- # ``` -->
-
-<!-- ``` {r} -->
-<!-- # To detect genes that are differentially expressed between either group (high/low), adjusting for replicate differences -->
-<!-- block_fit <- glmQLFit(exp1.dge, block_design_mat) -->
-<!-- ``` -->
-<!-- ```{r} -->
-<!-- block.qlf <- glmQLFTest(block_fit, coef=4) -->
-<!-- topTags(block.qlf) -->
-<!-- ``` -->
 
 ```{r Exp 1.6.2 QLT Differential expression analysis}
 # Likelihood ratio test for low vs high differences and show the top genes
 fit_ql <- glmQLFit(exp1.dge, block_design_mat)
 ```
-```{r Exp 1.6.2.1 QLF QQ plot}
-# Make qq-plot
-gof(fit_ql, plot = TRUE, main = "QQ Plot of Residual Deviances of fit_ql")
-```
 ```{r}
 qlt <- glmQLFTest(fit_ql)
 topTags(qlt)
+```
+```{r Exp 1.6.2.1 QLF QQ plot}
+# Make qq-plot
+gof(fit_ql, plot = TRUE, main = "QQ Plot of Residual Deviances of fit_ql")
 ```
 
 ```{r Exp 1.6.3 LRT Differential expression analysis}
 # Likelihood ratio test for low vs high differences and show the top genes
 fit_lr <- glmFit(exp1.dge, block_design_mat)
 ```
+```{r}
+lrt <- glmLRT(fit_lr)
+topTags(lrt)
+```
 ```{r Exp 1.6.3.1 LRT QQ plot}
 # # Make qq-plot
-# gof(fit_lr, plot = TRUE, main = "QQ Plot of Residual Deviances of fit_lr")
+gof(fit_lr, plot = TRUE, main = "QQ Plot of Residual Deviances of fit_lr")
 # for (i in 1:6) {
 #     plotMD(normalized_counts, column = i, 
 #            main = "Mean-difference plot (MD-plot) by sample ")
 #     abline(h = 0, col = "red", lty = 2, lwd = 2)
 # }
 # dev.off()
-```
-
-```{r}
-lrt <- glmLRT(fit_lr)
-topTags(lrt)
 ```
 ```{r mk toptags into csv}
 # out <- topTags(lrt, n=Inf)
