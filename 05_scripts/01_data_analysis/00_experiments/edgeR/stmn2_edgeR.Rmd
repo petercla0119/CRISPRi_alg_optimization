@@ -183,7 +183,7 @@ normalized_counts <- cpm(dge)
 # Apply normalization and plot normalization factors
 barplot(dge$samples$lib.size * dge$samples$norm.factors, main = "Library Sizes After Normalization", ylab = "Effective Library Size")
 
-base::summary(dge$samples)
+# base::summary(dge$samples)
 ```
 
 #### 1.3. Data Exploration. 
@@ -191,55 +191,11 @@ Dimension 1 separates the high group from the low group, while dimension 2 (*may
 ```{r Exp 1.3. MDS plot}
 plotMDS(dge, col = cols, main = "MDS Plot")
 ```
-#### Sidebar
 
-##### Paired/Blocking Designs
-
-###### Paired Design
-Clarify: Compare the High group to the Low group separately, so baseline differences between replicates are subtracted out. 
-This test detects genes that are differentially expressed in response to the "active treatment" compared to the control, adjusting for baseline differences between replicates. TLDR; a generalization of a paired t-test.  
-```{r Paired samples, Additive model without an interaction term}
-# TODO: clarify when you'd use a paired design vs blocked design
-# Additive model without an interaction term
-group <- as.factor(dge$samples$group)
-replicate <- as.factor(dge$samples$replicate)
-paired_design_mat <- model.matrix(~group + replicate)
-
-# Omit an interaction term b/c of paired design. Not interested in the effect of the group on the replicate
-# Interested in the avg effect of the high group over all replicate samples
-paired_high_vs_low <- estimateDisp(dge, paired_design_mat)
-
-# Fit a linear model and test for the "treatment" effect. Omit coef arg since the treatment effect is the last coef in the model
-paired_fit <- glmQLFit(paired_high_vs_low, paired_design_mat)
-```
-
-```{r}
-paired_qlf <- glmQLFTest(paired_fit)
-topTags(paired_qlf)
-```
-
-###### Blocked Design
-
-Compare the two conditions (high/low) adjusting for differences between replicates by fitting an additive model:
-Primarily interested in the differences between "treatments" (high/low)
-<!-- *Differences between replicates are not of primary interest, nor are we interested in a "treatment" effect that occurs for one replicate as this is not reproducible.* -->
-<!-- ```{r Blocking} -->
-<!-- group <- factor(dge$samples$group) -->
-<!-- replicate <- factor(dge$samples$replicate) -->
-<!-- block_design_mat <- model.matrix(~replicate + group) -->
-
-<!-- # Estimate dispersion -->
-<!-- block_high_vs_low <- estimateDisp(dge, block_design_mat) -->
-<!-- sqrt(block_high_vs_low$common.disp) -->
-
-<!-- # To detect genes that are differentially expressed between either group (high/low), adjusting for replicate differences -->
-<!-- block_fit <- glmQLFit(block_high_vs_low, block_design_mat) -->
-<!-- block.qlf <- glmQLFTest(block_fit, coef=4) -->
-<!-- topTags(block.qlf) -->
-<!-- ``` -->
 
 #### 1.4. Design Matrix - Block design
-
+Compare the two conditions (high/low) adjusting for differences between replicates by fitting an additive model:
+Primarily interested in the differences between "treatments" (high/low)
 We will use the **blocked** design for the rest of the analysis
 ```{r Exp 1.4. Block Design}
 group <- factor(dge$samples$group)
