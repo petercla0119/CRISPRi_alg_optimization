@@ -275,62 +275,6 @@ gof(fit_lr, plot = TRUE, main = "QQ Plot of Residual Deviances of fit_lr")
 # write.csv(out, file = "STMN2_edgeR_LRT_topTags.csv")
 ```
 
-```{r, eval=FALSE}
-# TODO: commented out below
-```
-
-<!-- #Lets try to compare the dispersion statistic by simulating observed and predicted values -->
-<!-- If the observed counts follow a NB distribution, what is the expected frequency distribution of this dispersion statistic? -->
-<!-- ```{r simulate dispersion statistic warning=FALSE} -->
-<!-- # Load necessary libraries -->
-<!-- library(MASS)  # For negative binomial functions -->
-<!-- # Step 1: Input your own data (replace 'your_data' with your actual counts data) -->
-<!-- your_data <- c(count_matrix)  # Replace with your actual count data (vector of counts) -->
-
-<!-- # Step 2: Fit the negative binomial model to your actual data -->
-<!-- fit_real_data <- glm.nb(your_data ~ 1) -->
-
-<!-- # Extract the mean (mu) and dispersion (theta) from your model fit -->
-<!-- mu_est <- mean(fitted(fit_real_data))  # Estimated mean (mu) -->
-<!-- theta_est <- fit_real_data$theta       # Estimated dispersion (theta) -->
-
-<!-- # Step 3: Set up the number of simulations -->
-<!-- N_iter <- 1000  # Number of simulations -->
-<!-- n_obs <- length(your_data)  # Number of observations based on your data -->
-
-<!-- # Step 4: Simulate the dispersion statistics using the estimated mu and theta -->
-<!-- dispersion_stats <- numeric(N_iter)  # Empty vector to store the dispersion statistics -->
-
-<!-- for (i in seq_len(N_iter)) { -->
-<!--   # Generate Negative Binomial-distributed counts using the estimated mu and theta -->
-<!--   y_sim <- rnbinom(n_obs, size = theta_est, mu = mu_est) -->
-
-<!--   # Fit a negative binomial model to the simulated data -->
-<!--   fit <- glm.nb(y_sim ~ 1) -->
-
-<!--   # Calculate Pearson residuals -->
-<!--   residuals <- residuals(fit, type = "pearson") -->
-
-<!--   # Calculate the dispersion statistic -->
-<!--   dispersion_stats[i] <- sum(residuals^2) / fit$df.residual -->
-<!-- } -->
-
-<!-- # Step 5: Calculate the observed dispersion statistic using your actual data -->
-<!-- observed_residuals <- residuals(fit_real_data, type = "pearson") -->
-<!-- observed_dispersion <- sum(observed_residuals^2) / fit_real_data$df.residual -->
-
-<!-- # Step 6: Plot the histogram of simulated dispersion statistics -->
-<!-- hist(dispersion_stats, breaks = 30, main = "Observed vs. Expected Dispersion Statistic (NB)",  -->
-<!--      xlab = "Dispersion Statistic", xlim = c(0.5, 3.5), col = "gray", border = "black") -->
-<!-- abline(v = observed_dispersion, col = "red", lwd = 2)  # Add observed dispersion as a red line -->
-
-<!-- # Print observed and expected values -->
-<!-- cat("Observed dispersion statistic:", observed_dispersion, "\n") -->
-<!-- cat("Expected dispersion statistic (mean of simulations):", mean(dispersion_stats), "\n") -->
-<!-- ``` -->
-
-
-
 All the top genes have consistent low vs high changes across replicates
 ```{r Exp 1.6.2 Adjust for baseline differences between replicates}
 colnames(block_design_mat)
