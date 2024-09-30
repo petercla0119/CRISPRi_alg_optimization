@@ -142,15 +142,15 @@ cols <- as.numeric(dge$samples$group) + 2
 # Plot number of hairpins that could be matched per sample and total for each hairpin across all samples
 barplot(colSums(dge$counts), 
         las=1, # Make x-axis text label horizontal
-        main="Counts per index", sub = "From filterByExpr",
+        main="Counts per index", sub = "With CPM > 5 in at least 2 samples",
         col=cols, cedge.names=0.5, cedge.adgeis=0.8)
 barplot(rowSums(dge$counts), las = 2, 
-        main = "Counts per sgRNA", sub = "From filterByExpr",
+        main = "Counts per sgRNA", sub = "With CPM > 5 in at least 2 samples",
         cex.names = 0.5, cex.axis = 0.8)
 ```
 ```{r Exp 1.2.4. I Verify Retainment of Genes of Interest}
 # I want to ensure TDP and STMN2 are kept for downstream analysis - if not, then useless ----
-keep <- as.matrix(keep) # Convert keep obj (logical) to a matrix to verify genes of interest are retained
+keep <- as.matrix(filtermanual_keep) # Convert keep obj (logical) to a matrix to verify genes of interest are retained
 # For genes_removed
 genes_removed <- data.frame(Gene = rownames(keep[which(keep == FALSE), , drop = FALSE]), 
                             Value = keep[keep == FALSE])
@@ -167,45 +167,7 @@ genes_keep <- data.frame(Gene = rownames(keep[which(keep == TRUE), , drop = FALS
 genes_keep[genes_keep$Gene %in% c("TARBP1", "STMN2"), ]
 ```
 
-<!-- *From Analyzing data from pooled genetic sequencing screens using edgeR,* **Chapt 6** *Analysis of a large CRISPR-Cas9 knockout screen* -->
-<!-- ```{r Exp 1 Plot Filtered sgRNAs} -->
-<!-- # Ignore lines below which were originally from the pooled screen analysis pdf ---- -->
-<!-- # Exp 1b. Plot Filtered sgRNAs -->
-<!-- # Plot number of hairpins that could be matched per sample and total for each hairpin across all samples -->
-<!-- # Setup arrangement of plots -->
-<!-- # par(mfrow = c(2, 1)) -->
-<!-- # Plot number of hairpins that could be matched per sample -->
-<!-- selr = rowSums(cpm(x4$counts) > 5) >= 15 -->
-<!-- # Need at least 100,000 reads to keep a given sample -->
-<!-- selc = colSums(x4$counts) >= 1e+05 -->
-<!-- x4 = x4[selr, selc] -->
-<!-- # Set up drug treatment colours -->
-<!-- cols = as.numeric(x4$samples$group) + 2 -->
-<!-- # Plot number of sgRNAs that could be matched per sample and total for each sgRNA across -->
-<!-- # all samples -->
-<!-- par(mfrow = c(2, 1)) -->
-<!-- barplot(colSums(x4$counts), las = 2, main = "Counts per index", col = cols, cex.names = 0.5, -->
-<!-- cex.axis = 0.8) -->
-<!-- barplot(rowSums(x4$counts), las = 2, main = "Counts per sgRNA", cex.names = 0.5, cex.axis = 0.8) -->
-<!-- ``` -->
-
 ```{r Exp 1.2.5. Normalization}
-# z <- rowSums(cpm(dge$counts)>5)>=15
-# cols <- as.numeric(dge$samples$group)+2
-# barplot(colSums(dge$counts), las=2, main="Counts per index",
-#           col=cols, cedge.names=0.5, cedge.adgeis=0.8)
-# legend("topright", legend=c("Control", "Drug"), col=c(3,4), pch=15)
-# barplot(rowSums(dge$counts), las=2, main="Counts per sgRNA", 
-#           adgeisnames=FALSE, cedge.adgeis=0.8)
-# 
-# legend("topright", legend=c("Control", "Drug"), col=c(3,4), pch=15)
-# barplot(rowSums(dge$counts), las=2, main="Counts per sgRNA", 
-#           adgeisnames=FALSE, cedge.adgeis=0.8)
-
-# barplot(colSums(dge$counts), las = 2, main = "Counts per index", sub = "From filterByExpr", cex.names = 0.5, cex.axis = 0.8, ylim = c(0, 2e+07))
-# barplot(colSums(dge_1b$counts), las = 2, main = "Counts per index", sub = "From at least 0.5 counts per million in at least 3 samples", cex.names = 0.5, cex.axis = 0.8, ylim = c(0, 2e+07))
-# Exp 1b. Normalize ----
-
 # Plot library sizes before normalization
 barplot(dge$samples$lib.size, main = "Library Sizes Before Normalization", ylab = "Library Size")
 
