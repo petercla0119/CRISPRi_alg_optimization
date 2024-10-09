@@ -12,11 +12,17 @@ output:
 execute:
   echo: false
   warning: false
+editor_options: 
+  markdown: 
+    wrap: sentence
 ---
 
-**Objective**: The goal of the notebook is to use edgeR on the STMN2 screen. Previous attempts to generate plots from the STMN2 gene file had noise plateaued. Reminder that the MAGeCK output data is on the Desktop, whereas scripts are located 
+**Objective**: The goal of the notebook is to use edgeR on the STMN2 screen.
+Previous attempts to generate plots from the STMN2 gene file had noise plateaued.
+Reminder that the MAGeCK output data is on the Desktop, whereas scripts are located
 
 # STMN2 Screen
+
 ```{r Setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 knitr::opts_chunk$set(warning = FALSE)
@@ -28,8 +34,10 @@ library(edgeR)
 library(dplyr)
 library(tidyverse)
 library(MASS)
+library(ggrepel)
 source("~/CRISPRi_alg_optimization/05_scripts/01_data_analysis/00_experiments/clean_preprocess_module.R")
 ```
+
 ```{r Import raw data}
 # Import the original raw count data (from JH) from the STMN2 screen from the dual-guide (v8) parser script
 # jh_raw_counts <- read.delim("/Users/claireps/CRISPRi_alg_optimization/JH/01_data/00_processed_data/00_mageck_counts/counts/all.count.txt", sep = "\t", header = TRUE)
@@ -40,14 +48,14 @@ raw_counts <- read.delim("/Users/claireps/CRISPRi_alg_optimization/01_sorting-ba
 
 ```
 
-
 ## Prepare data for DGEList object for edgeR
+
 ```{r Clean and explore the raw read count data, echo=FALSE}
 # Convert counts columns to numerics
 raw_counts[ , 3:ncol(raw_counts)] <- base::lapply(raw_counts[ , 3:ncol(raw_counts)], as.numeric)
 
 base::summary(raw_counts)
-# TODO: Why are there so many NA values in High_rep3? Like 78 NAs versus 16 in other samples.
+# NOTE: Why are there so many NA values in High_rep3? Like 78 NAs versus 16 in other samples. - higher events per second in high/low rep 3 - FACS device has harder time collecting high fluorescence events
 
 # There are zero and NA values, but how many?
 zero_count_per_column <- sapply(raw_counts, function(x) sum(x == 0, na.rm = TRUE))
@@ -77,9 +85,12 @@ base::summary(clean_raw_counts)
 
 ## Experiments
 
+-   `clean_raw_counts` is a df of raw count values without any 0s/NAs
+
 ### Experiment 1: Try analysis after removing all zero and NA values
 
 #### 1.1 Reading in the data
+
 ```{r Exp 1.1 Create DGEList Object}
 # Exp 1.1 Create DGEList object for edgeR ----
 ## Convert the DataFrame to a Matrix
@@ -87,6 +98,7 @@ base::summary(clean_raw_counts)
 count_matrix <- as.matrix(clean_raw_counts[, -1:-2])  # Exclude the two columns with sgRNAs and gene names
 rownames(count_matrix) <- clean_raw_counts[, 2]    # Set the gene names as rownames
 
+count_matrix <- clean_and_process_counts_for_dge(raw_counts)
 ## Include the group information when creating the DGEList object
 # Create a factor variable to define the group/condition
 group <- factor(c("Low", "Low", "Low", "High", "High", "High"))
@@ -109,6 +121,7 @@ print(dge)
 ```
 
 #### 1.2. Filtering and Normalization
+
 ```{r Exp 1.2.1-2. Filtering}
 # Exp 1.2.1 Filtering 1 ----
 # Genes are only retained if they are expressed at a minimum level
@@ -122,7 +135,7 @@ dge_filterbyexpr_ct <- nrow(dge$counts)
 
 # Exp 1.2.2. Filtering 2 ----
 # Filter out sgRNAs with at least 0.5 counts per million in at least 3 samples. Used CPM since values are standardized for systematic differences in the amount of sequencing between samples cpm function accounts for library differences
-filtermanual_keep <- rowSums(cpm(dge$counts)>10)>=2
+filtermanual_keep <- rowSums(cpm(dge$counts)>50)>=2
 table(filtermanual_keep)
 dge <- dge[filtermanual_keep, ,keep.lib.sizes=FALSE] # This is the dge obj we will move forward with for subsequent analyses
 dge_filtermanual <- dge # Keep a copy of the counts filtered by manual threshold values
@@ -138,8 +151,8 @@ dropped_genes <- base::setdiff(row.names(dge_filterbyexpr$counts), row.names(dge
 "TARBP1" %in% dropped_genes
 ```
 
-
 *From Analyzing data from pooled genetic sequencing screens using edgeR,* **Chapt 2** *Analysis of a small shRNA-seq screen*
+
 ```{r Exp 1.2.3 Plot Filtered sgRNAs}
 # Exp 1.2a. Plot Filtered sgRNAs ----
 # Set up drug treatment colors
@@ -148,12 +161,13 @@ cols <- as.numeric(dge$samples$group) + 2
 # Plot number of hairpins that could be matched per sample and total for each hairpin across all samples
 barplot(colSums(dge$counts), 
         las=1, # Make x-axis text label horizontal
-        main="Counts per index", sub = "With CPM > 5 in at least 2 samples",
+        main="Counts per index", sub = "With CPM > 50 in at least 2 samples",
         col=cols, cedge.names=0.5, cedge.adgeis=0.8)
 barplot(rowSums(dge$counts), las = 2, 
-        main = "Counts per sgRNA", sub = "With CPM > 5 in at least 2 samples",
+        main = "Counts per sgRNA", sub = "With CPM > 50 in at least 2 samples",
         cex.names = 0.5, cex.axis = 0.8)
 ```
+
 ```{r Exp 1.2.4. I Verify Retainment of Genes of Interest}
 # I want to ensure TDP and STMN2 are kept for downstream analysis - if not, then useless ----
 keep <- as.matrix(filtermanual_keep) # Convert keep obj (logical) to a matrix to verify genes of interest are retained
@@ -192,17 +206,20 @@ barplot(dge$samples$lib.size * dge$samples$norm.factors, main = "Library Sizes A
 # base::summary(dge$samples)
 ```
 
-#### 1.3. Data Exploration. 
-Dimension 1 separates the high group from the low group, while dimension 2 (*maybe*) corresponds to the replicate number. The MDS plot (*maybe*) suggests that the samples were paired. The samples in the **High** group appear more heterogeneous than the samples in the **Low** group.  
+#### 1.3. Data Exploration.
+
+Dimension 1 separates the high group from the low group, while dimension 2 (*maybe*) corresponds to the replicate number.
+The MDS plot (*maybe*) suggests that the samples were paired.
+The samples in the **High** group appear more heterogeneous than the samples in the **Low** group.
+
 ```{r Exp 1.3. MDS plot}
 plotMDS(dge, col = cols, main = "MDS Plot")
 ```
 
-
 #### 1.4. Design Matrix - Block design
-Compare the two conditions (high/low) adjusting for differences between replicates by fitting an additive model:
-Primarily interested in the differences between "treatments" (high/low)
-We will use the **blocked** design for the rest of the analysis
+
+Compare the two conditions (high/low) adjusting for differences between replicates by fitting an additive model: Primarily interested in the differences between "treatments" (high/low) We will use the **blocked** design for the rest of the analysis
+
 ```{r Exp 1.4. Block Design}
 group <- factor(dge$samples$group)
 replicate <- factor(dge$samples$replicate)
@@ -212,12 +229,14 @@ print(block_design_mat)
 
 #### 1.5. Dispersion estimation
 
-Options are *common dispersion*, *trended dispersion*, and *tagwise dispersion*. 
-*common dispersion* best for small datasets with few replicates and does not account for differences based on expression level (ie assumes all genes have similar biological variability). 
-*trended dispersion* best for larger datasets and suspect that variability depends on gene expression levels (eg low gene expression has higher noise). 
-*tagwise dispersion* best for large datasets and builds on trended dispersion but also models individual gene variability (ie accounts for gene-specific variability). 
+Options are *common dispersion*, *trended dispersion*, and *tagwise dispersion*.
+*common dispersion* best for small datasets with few replicates and does not account for differences based on expression level (ie assumes all genes have similar biological variability).
+*trended dispersion* best for larger datasets and suspect that variability depends on gene expression levels (eg low gene expression has higher noise).
+*tagwise dispersion* best for large datasets and builds on trended dispersion but also models individual gene variability (ie accounts for gene-specific variability).
 
-*robust=true* argument: enables robust dispersion estimation, making the analysis less sensitive to outliers and genes with extreme variability. Useful for datasets with potential outliers or high variability and improves the stability and reliability of the dispersion estimates. 
+*robust=true* argument: enables robust dispersion estimation, making the analysis less sensitive to outliers and genes with extreme variability.
+Useful for datasets with potential outliers or high variability and improves the stability and reliability of the dispersion estimates.
+
 ```{r Exp 1.5.1 Dispersion estimation}
 # dge <- estimateDisp(dge, block_design_mat, robust = TRUE, tagwise = TRUE)
 # Estimate dispersion
@@ -227,19 +246,21 @@ exp1.dge <- estimateDisp(dge, block_design_mat)
 The square root of the common dispersion gives the coefficient of variation of the biological variation.
 Here, the **common dispersion** is **`r exp1.dge$common.dispersion`** and the biological CV is **`r sqrt(exp1.dge$common.dispersion)`**
 
-In the BCV plot below:  
-* The red line represents the common dispersion estimate. It assumes all genes have the same biological variability.  
-* The blue line represents the trended dispersion estimate. It is the smoothed function of the relationship between the mean expression (log CPM) and the BCV.  
+In the BCV plot below:\
+\* The red line represents the common dispersion estimate.
+It assumes all genes have the same biological variability.\
+\* The blue line represents the trended dispersion estimate.
+It is the smoothed function of the relationship between the mean expression (log CPM) and the BCV.
 
-**BCV Plot Observations**   
+**BCV Plot Observations**
 
-* High BCV at low expression levels: genes with lower expression levels (below log CPM=2) tend to have a higher BCV. Thereby, suggests that lowly expressed genes tend to have higher variability across replicates. Typical of as low counts are more prone to noise and stochastic variation. 
-* Lower BCV at higher expression levels: genes with highly expressed genes tend to have a lower BCV. Thereby, suggests that high gene expression levels tend to have more stable expression, with less biological variability. Typical as higher counts tend to be more robust and less susceptible to random fluctuations.
-* Flater BCV at very high expression levels: The right side of the blue trend line indicates that highly expressed genes generally have low and stable variability.  
+-   High BCV at low expression levels: genes with lower expression levels (below log CPM=2) tend to have a higher BCV. Thereby, suggests that lowly expressed genes tend to have higher variability across replicates. Typical of as low counts are more prone to noise and stochastic variation.
+-   Lower BCV at higher expression levels: genes with highly expressed genes tend to have a lower BCV. Thereby, suggests that high gene expression levels tend to have more stable expression, with less biological variability. Typical as higher counts tend to be more robust and less susceptible to random fluctuations.
+-   Flater BCV at very high expression levels: The right side of the blue trend line indicates that highly expressed genes generally have low and stable variability.\
+
 ```{r Exp 1.5.2. Plot the dispersion estimates in a BCV plot}
 plotBCV(exp1.dge, main = "STMN2 BCV Plot")
 ```
-
 
 #### 1.6. Differential Expression Analysis
 
@@ -247,25 +268,31 @@ plotBCV(exp1.dge, main = "STMN2 BCV Plot")
 # Likelihood ratio test for low vs high differences and show the top genes
 fit_ql <- glmQLFit(exp1.dge, block_design_mat)
 ```
+
 ```{r}
 qlt <- glmQLFTest(fit_ql)
-topTags(qlt)
+exp1_lrt_toptags <- topTags(qlt, n=Inf)
+exp1_lrt_df <- as.data.frame(exp1_lrt_toptags$table)
 ```
+
 ```{r Exp 1.6.2.1 QLF QQ plot}
 # Make qq-plot
 gof(fit_ql, plot = TRUE, main = "QQ Plot of Residual Deviances of fit_ql")
+plot(exp1_lrt_df$logFC, exp1_lrt_df$PValue)
 ```
 
 ```{r Exp 1.6.3 LRT Differential expression analysis}
 # Likelihood ratio test for low vs high differences and show the top genes
 fit_lr <- glmFit(exp1.dge, block_design_mat)
 ```
+
 ```{r}
 lrt <- glmLRT(fit_lr)
 lrt_top <- topTags(lrt, adjust.method = "BH", n = Inf)
 # lrt_fdr_0.005 <- lrt_top$table[lrt_top$table$FDR < 0.005, ]
 # lrt_fdr_0.005 %>% dplyr::filter(gene =="STMN2" | gene =="TARBP")
 ```
+
 ```{r Exp 1.6.3.1 LRT QQ plot}
 # # Make qq-plot
 gof(fit_lr, plot = TRUE, main = "QQ Plot of Residual Deviances of fit_lr")
@@ -276,45 +303,62 @@ gof(fit_lr, plot = TRUE, main = "QQ Plot of Residual Deviances of fit_lr")
 # }
 # dev.off()
 ```
+
 ```{r mk toptags into csv}
 # out <- topTags(lrt, n=Inf)
 # write.csv(out, file = "STMN2_edgeR_LRT_topTags.csv")
 ```
 
 All the top genes have consistent low vs high changes across replicates
+
 ```{r Exp 1.6.2 Adjust for baseline differences between replicates}
 colnames(block_design_mat)
 o <- order(lrt$table$PValue)
 cpm(exp1.dge)[o[1:10],]
 ```
-The total number of genes with a FDR < 0.05 is **`r summary(decideTests(lrt))`**.  
-The total number of genes with a logFC < -1 is **`r sum(lrt$table$logFC < -3)`**.  
-The total number of genes with a logFC > 1 is **`r sum(lrt$table$logFC > 3)`**.  
+
+The total number of genes with a FDR \< 0.05 is **`r summary(decideTests(lrt))`**.\
+The total number of genes with a logFC \< -1 is **`r sum(lrt$table$logFC < -3)`**.\
+The total number of genes with a logFC \> 1 is **`r sum(lrt$table$logFC > 3)`**.
 
 <!-- #### Plot LFC vs logCPM -->
+
 <!-- ```{r Exp 1.6.3. Plot log-fold change against log-counts per million, with DE genes highlighted} -->
+
 <!-- # Chunk runs, but doesnt show STMN2 or TDP-->
+
 <!-- # Define the gene of interest (its index or identifier) -->
+
 <!-- gene_of_interest <- c("STMN2", "TARBP1") -->
+
 <!-- # TODO: why doesnt TARBP appear but not TARBP1 -->
+
 <!-- ntc <- "negative_control" -->
 
 <!-- # Create a status vector: highlight the gene of interest -->
+
 <!-- status <- rep("Other", nrow(lrt$table)) # Default status for all genes -->
+
 <!-- status[lrt$genes == gene_of_interest] <- "Gene of Interest" -->
+
 <!-- status[lrt$genes == ntc] <- "Non-targeting Control" -->
 
 <!-- # Plot the MD plot with the highlighted gene -->
+
 <!-- plotMD(lrt, status = status, col = c("gray", "red"))  # 'red' will highlight the gene of interest -->
 
 <!-- # Add horizontal lines at log fold changes of -1 and 1 (blue lines) -->
+
 <!-- abline(h = c(-1, 1), col = "blue") -->
 
 <!-- plotMD(lrt) -->
+
 <!-- abline(h=c(-1, 1), col="blue") -->
+
 <!-- ``` -->
 
-# Volcano plot ----
+#### Volcano plot ----
+
 ```{r}
 # Convert lrt_top object into dataframe
 lrt_top_df <- as.data.frame(lrt_top$table)
@@ -373,9 +417,11 @@ myvolcanoplot <- ggplot(data = both, aes(x = logFC, y = qvalue, col = diffexpres
   scale_x_continuous(breaks = seq(-10, 10, 2)) + # to customise the breaks in the x axis
   ggtitle('STMN2 Screen sgRNAs') + # Plot title
   geom_text_repel(max.overlaps = Inf) # To show all labels 
+myvolcanoplot
 ```
 
 #### 1.7 Gene Ontology Analysis
+
 ```{r Exp 1.7 Gene Ontology Analysis}
 # TODO: Add gene annotation for pathway analysis
 # go <- goana(lrt)
@@ -383,6 +429,7 @@ myvolcanoplot <- ggplot(data = both, aes(x = logFC, y = qvalue, col = diffexpres
 ```
 
 #### 1.x. Session Info
+
 ```{r Exp 1.x Session info}
 sessionInfo()
 ```
@@ -390,6 +437,7 @@ sessionInfo()
 ### Experiment 2: Try analysis with glmQLFit and glmLRT functions. Differs from the experiment above as this experiment uses glmQLFit followed by glmLRT functions for the analysis which resulted in TDP and STMN2 being listed as a top hit in analysis.
 
 #### 2.1 Reading in the data
+
 ```{r}
 # Exp 1.1 Create DGEList object for edgeR ----
 ## Convert the DataFrame to a Matrix
@@ -407,7 +455,8 @@ dge <- DGEList(counts = count_matrix, group = group)
 
 # Create a new col to label replicate number and sample info 
 dge$samples$id <- c(1,2,3,4,5,6) # 1=low1,2=low2,3=low3,4=high1,5=high2,6=high3
-dge$samples$replicate = c(1,2,3,1,2,3) # high 1, low 1, high 2, low 2, high 3, low 3
+dge$samples$replicate = factor(c("rep1", "rep2", "rep3", "rep1", "rep2", "rep3")) # high 1, low 1, high 2, low 2, high 3, low 3
+dge$samples$replicate <- relevel(dge$samples$replicate, ref = "rep3")
 
 # Create new list to label sgRNA ID
 dge$genes <- data.frame(gene = clean_raw_counts[, 2])
@@ -417,22 +466,25 @@ dge$genes$sgrna_id <- as.matrix(clean_raw_counts[,1])
 ```
 
 #### 2.2. Filtering and Normalization
+
 ```{r}
 # Exp 1.2.1 Filtering 1 ----
 # Genes are only retained if they are expressed at a minimum level
 # The group factor or the experimental design matrix can also be given directly to the filterBy Expr function
-keep <- filterByExpr(dge, group = group)
-dge <- dge[keep, , keep.lib.sizes=FALSE]
+# keep <- filterByExpr(dge, group = group)
+# dge_exp2_filterbyexpr <- dge[keep, , keep.lib.sizes=FALSE]
+# dge <- dge_exp2_filterbyexpr
 
 # Exp 1.2.2. Filtering 2 ----
 # Filter out sgRNAs with at least 0.5 counts per million in at least 3 samples. Used CPM since values are standardized for systematic differences in the amount of sequencing between samples
-sel <- rowSums(cpm(dge$counts)>50)>=2
-table(keep)
-dge = dge[sel, ]
+exp2_filtermanual_keep <- rowSums(cpm(dge$counts)>50)>=2
+table(exp2_filtermanual_keep)
+dge_exp2_filtermanual = dge[exp2_filtermanual_keep, ,keep.lib.sizes=FALSE]
+dge <- dge_exp2_filtermanual
 ```
 
-
 *From Analyzing data from pooled genetic sequencing screens using edgeR,* **Chapt 2** *Analysis of a small shRNA-seq screen*
+
 ```{r}
 # Exp 1.2a. Plot Filtered sgRNAs ----
 # Set up drug treatment colors
@@ -447,14 +499,8 @@ barplot(colSums(dge$counts),
 barplot(rowSums(dge$counts), las = 2, 
         main = "Counts per sgRNA", sub = "From filterByExpr",
         cex.names = 0.5, cex.axis = 0.8)
-# Plot number of hairpins that could be matched per sample and total for each hairpin across all samples
-# barplot(colSums(dge_1b$counts), las=1, 
-#         main="Counts per index", sub = "From at least 0.5 counts per million in at least 3 samples",
-#         col=cols, cedge.names=0.5, cedge.adgeis=0.8)
-# barplot(rowSums(dge_1b$counts), las = 2, 
-#         main = "Counts per sgRNA", sub = "From at least 0.5 counts per million in at least 3 samples",
-#         cex.names = 0.5, cex.axis = 0.8)
 ```
+
 ```{r}
 # I want to ensure TDP and STMN2 are kept for downstream analysis - if not, then useless ----
 keep <- as.matrix(keep) # Convert keep obj (logical) to a matrix to verify genes of interest are retained
@@ -470,7 +516,6 @@ genes_keep[genes_keep$Gene %in% c("TARBP1", "STMN2"), ]
 
 ```{r}
 # Exp 1b. Normalize ----
-
 # Plot library sizes before normalization
 barplot(dge$samples$lib.size, main = "Library Sizes Before Normalization", ylab = "Library Size")
 
@@ -487,19 +532,24 @@ base::summary(dge$samples)
 ```
 
 #### 2.3. Data Exploration
-Dimension 1 separates the high group from the low group, while dimension 2 (*maybe*) corresponds to the replicate number. The MDS plot (*maybe*) suggests that the samples were paired. The samples in the **High** group appear more heterogeneous than the samples in the **Low** group.
+
+Dimension 1 separates the high group from the low group, while dimension 2 (*maybe*) corresponds to the replicate number.
+The MDS plot (*maybe*) suggests that the samples were paired.
+The samples in the **High** group appear more heterogeneous than the samples in the **Low** group.
+
 ```{r}
 plotMDS(dge, col = cols, main = "MDS Plot")
 ```
+
 #### 2.4. Design Matrix - Block design
 
-Compare the two conditions (high/low) adjusting for differences between replicates by fitting an additive model:  
-Primarily interested in the differences between "treatments" (high/low). 
+Compare the two conditions (high/low) adjusting for differences between replicates by fitting an additive model:\
+Primarily interested in the differences between "treatments" (high/low).
 *Differences between replicates are not of primary interest, nor are we interested in a "treatment" effect that occurs for one replicate as this is not reproducible.*
 
-**Interestingly, glmQLFit followed by glmLRT top tags results in TDP43 and STMN2 - but dont know why...  
 ```{r, echo=TRUE}
 group <- factor(dge$samples$group)
+dge$samples$replicate = as.factor(dge$samples$replicate)
 replicate <- factor(dge$samples$replicate)
 block_design_mat <- model.matrix(~replicate + group)
 ```
@@ -508,57 +558,180 @@ block_design_mat <- model.matrix(~replicate + group)
 
 ```{r}
 # Estimate dispersion
-exp2.block.dge <- estimateDisp(dge, block_design_mat)
+exp2_block_dge <- estimateDisp(dge, block_design_mat)
 ```
+
 The square root of the common dispersion gives the coefficient of variation of the biological variation.
-Here, the **common dispersion** is **`r exp2.block.dge$common.dispersion`** and the biological CV is **`r sqrt(exp2.block.dge$common.dispersion)`**
+Here, the **common dispersion** is **`r exp2_block_dge$common.dispersion`** and the biological CV is **`r sqrt(exp2_block_dge$common.dispersion)`**
+
 ```{r}
-plotBCV(exp2.block.dge, main = "STMN2 BCV Plot")
+plotBCV(exp2_block_dge, main = "STMN2 BCV Plot")
 ```
 
 #### 2.6. Differential Expression Analysis
 
 ```{r}
 # To detect genes that are differentially expressed between either group (high/low), adjusting for replicate differences
-block_fit <- glmQLFit(exp2.block.dge, block_design_mat)
+exp2_fit <- glmQLFit(exp2_block_dge, block_design_mat)
 ```
+
 ```{r}
-block.lrt <- glmLRT(block_fit, coef=4)
-topTags(block.lrt)
+exp2_lrt <- glmLRT(exp2_fit, coef=4)
+exp2_lrt_toptags <- topTags(exp2_lrt, n=Inf)
+head(exp2_lrt_toptags$table, n=10)
+```
+
+```{r}
+# Make qq-plot
+gof(exp2_fit, plot = TRUE, main = "QQ Plot of Residual Deviances of fit_ql")
 ```
 
 All the top genes have consistent low vs high changes across replicates
+
 ```{r}
 colnames(block_design_mat)
-o <- order(block.lrt$table$PValue)
-cpm(exp2.block.dge)[o[1:10],]
+o <- order(exp2_lrt$table$PValue)
+cpm(exp2_block_dge)[o[1:10],]
 ```
-The total number of genes with a FDR < 0.05 is **`r summary(decideTests(block.lrt))`**.
-The total number of genes with a logFC < -1 is **`r sum(block.lrt$table$logFC < -1)`**.
-The total number of genes with a logFC > 1 is **`r sum(block.lrt$table$logFC > 1)`**.
+
+The total number of genes with a FDR \< 0.05 is **`r summary(decideTests(exp2_lrt))`**.
+The total number of genes with a logFC \< -1 is **`r sum(exp2_lrt$table$logFC < -1)`**.
+The total number of genes with a logFC \> 1 is **`r sum(exp2_lrt$table$logFC > 1)`**.
+#### Volcano plot ----
+
+```{r}
+# Convert lrt_top object into dataframe
+exp2_lrt_df <- as.data.frame(exp2_lrt_toptags$table)
+exp2_lrt_df=exp2_lrt_df %>% dplyr::arrange(PValue)
+# Shrink LFC values
+# res <- glmTreat(fit, coef=2, lfc=log2(1.5))
+
+
+npg <- c("#E64B35B2", "#4DBBD5B2", "#00A087B2", "#3C5488B2", "#F39B7FB2", "#8491B4B2", "#91D1C2B2", "#DC0000B2", "#7E6148B2")
+
+negative <- exp2_lrt_df %>% 
+  dplyr::filter(logFC < 0 & !grepl('negative_control', gene)) %>% 
+  dplyr::arrange(PValue)
+positive <- exp2_lrt_df %>% 
+  dplyr::filter(logFC > 0 & !grepl('negative_control', gene)) %>% 
+  dplyr::arrange(PValue)
+ntc <- exp2_lrt_df %>% dplyr::filter(grepl('negative_control', gene))
+exp2_lrt_df <- base::rbind(negative, positive, ntc) %>% 
+  dplyr::mutate(
+    qvalue = round(-log10(PValue), digits = 5))
+# Create volcano plot ---------
+
+# Original low/high genes from mageck
+# low_top_genes <- c('GET4','MAP2K4','CLASRP','POU3F1','ECEL1','NOTCH1','ATF2','CHORDC1','CALM2','UBE3C')
+# high_top_genes <- c('RANBP1','KIAA1919','FADS2','CCNC','TARDBP','STMN2','ZC3H13','LARP6','RBL2','PAPOLG')
+
+# Create a new column "delabel" to de, that will contain the name of the top 30 differentially expressed genes (NA in case they are not)
+exp2_lrt_df$delabel <- ifelse(exp2_lrt_df$gene %in% head(exp2_lrt_df[order(exp2_lrt_df$PValue), "gene"], 30), exp2_lrt_df$gene, NA)
+exp2_lrt_df$diffexpressed <- "NO"
+exp2_lrt_df$diffexpressed[exp2_lrt_df$logFC > 2 & exp2_lrt_df$PValue < 0.00001] <- "UP"
+exp2_lrt_df$diffexpressed[exp2_lrt_df$logFC < -2 & exp2_lrt_df$PValue < 0.00001] <- "DOWN"
+
+
+myvolcanoplot <- ggplot(data = exp2_lrt_df, aes(x = logFC, y = -log10(PValue), col = diffexpressed, label = delabel, alpha =0.5)) +
+  geom_vline(xintercept = c(-2, 2), col = "gray", linetype = 'dashed') +
+  geom_hline(yintercept = -log10(0.00001), col = "gray", linetype = 'dashed') +
+  geom_point(size = 2) +
+  geom_jitter(data = exp2_lrt_df %>% dplyr::filter(gene == "STMN2" | gene == "TARBP"), aes(x = logFC, y = -log10(PValue)), size = 1.5, alpha = 0.9, color = "black") +
+  scale_color_manual(values = c("#00AFBB", "grey", "#bb0c00"), # to set the colours of our variable
+                     labels = c("Downregulated", "Not significant", "Upregulated")) + # to set the labels in case we want to overwrite the categories from the dataframe (UP, DOWN, NO)
+  labs(color = 'Severe', #legend_title,
+       x = expression("log"[2]*"FC"), y = expression("-log"[10]*"p-value")) +
+  scale_x_continuous(breaks = seq(-10, 10, 2)) + # to customise the breaks in the x axis
+  ggtitle('STMN2 Screen sgRNAs') + # Plot title
+  geom_text_repel(max.overlaps = Inf) # To show all labels 
+myvolcanoplot
+
+```
+
+##### Run Diagnostics on Volcano Plot
+
+```{r}
+plot(exp1_lrt_df$logCPM, exp1_lrt_df$logFC, xlab="Average log CPM", ylab="log-fold-change", pch=16, cex=0.4)
+abline(h=0, col="red")
+title(main = "MA Plot of Exp 1")
+
+
+plot(exp2_lrt_df$logCPM, exp2_lrt_df$logFC, xlab="Average log CPM", ylab="log-fold-change", pch=16, cex=0.4)
+abline(h=0, col="red")
+title(main = "MA Plot of Exp 2")
+
+```
+
+**LFC and logCPM values are identical across dry lab experiments, only pvalues and FDR differ with LRT**
+
+```{r}
+# CHECK: volcanoplot for exp 2 is parobolic... why?
+# TODO: check summary plots of exp 1 and exp 2 for logFC and logCPM 
+
+plot(exp1_lrt_df$logFC)
+plot(exp2_lrt_df$logFC)
+
+plot(exp1_lrt_df$logCPM)
+plot(exp2_lrt_df$logCPM)
+exp2_lrt_df = exp2_lrt_df %>% arrange(PValue)
+plot(exp1_lrt_df$PValue)
+plot(exp2_lrt_df$PValue)
+
+summary(exp1_lrt_df)
+summary(exp2_lrt_df)
+
+plot(exp1_lrt_df$logCPM, exp1_lrt_df$logFC)
+plot(exp2_lrt_df$logCPM, exp2_lrt_df$logFC)
+
+```
+
+```{r}
+# TODO: Add bootstrapping to get NTC in center of volcano plot
+```
 
 <!-- #### Plot LFC vs logCPM -->
+
 <!-- ```{r Exp 1.6.3. Plot log-fold change against log-counts per million, with DE genes highlighted} -->
+
 <!-- # Define the gene of interest (its index or identifier) -->
+
 <!-- gene_of_interest <- c("STMN2", "TARBP") -->
+
 <!-- # TODO: why doesnt TARBP appear but not TARBP1 -->
+
 <!-- ntc <- "negative_control" -->
 
 <!-- # Create a status vector: highlight the gene of interest -->
+
 <!-- status <- rep("Other", nrow(lrt$table)) # Default status for all genes -->
+
 <!-- status[lrt$genes == gene_of_interest] <- "Gene of Interest" -->
+
 <!-- status[lrt$genes == ntc] <- "Non-targeting Control" -->
 
 <!-- # Plot the MD plot with the highlighted gene -->
+
 <!-- plotMD(lrt, status = status, col = c("gray", "red"))  # 'red' will highlight the gene of interest -->
 
 <!-- # Add horizontal lines at log fold changes of -1 and 1 (blue lines) -->
+
 <!-- abline(h = c(-1, 1), col = "blue") -->
 
 <!-- plotMD(lrt) -->
+
 <!-- abline(h=c(-1, 1), col="blue") -->
 
+##### Run Diagnostics on Volcano Plot
+
+```{r}
+plot(exp2_lrt_df$logCPM, exp2_lrt_df$logFC, xlab="Average log CPM", ylab="log-fold-change", pch=16, cex=0.4)
+abline(h=0, col="red")
+title(main = "MA Plot of Exp 2")
+
+```
+
 #### 2.x. Session Info
+
 ```{r Exp 2.x Session info}
 sessionInfo()
 ```
