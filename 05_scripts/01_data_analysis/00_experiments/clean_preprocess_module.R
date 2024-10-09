@@ -143,10 +143,23 @@ clean_and_process_counts_for_dge <- function(raw_counts, sgRNA_col = "sgRNA", ge
   count_matrix <- as.matrix(clean_raw_counts[, -match(exclude_cols, names(clean_raw_counts))])
   
   # Set the rownames of the matrix to the Gene column
-  rownames(count_matrix) <- clean_raw_counts[[gene_col]]
+  rownames(count_matrix) <- clean_raw_counts[[sgRNA_col]]
+  
+  # Create dge object
+  dge <- DGEList(counts = count_matrix, group = group)
+  
+  # Create a new col to label replicate number and sample info 
+  dge$samples$id <- c(1,2,3,4,5,6) # 1=low1,2=low2,3=low3,4=high1,5=high2,6=high3
+  dge$samples$replicate = c(1,2,3,1,2,3) # high 1, low 1, high 2, low 2, high 3, low 3
+  
+  # Create new list to label sgRNA ID
+  dge$genes <- data.frame(gene = clean_raw_counts[, 2])
+  # Copy the count data 
+  dge$genes <- as.data.frame(dge$genes)
+  dge$genes$sgrna_id <- as.matrix(clean_raw_counts[,1])
   
   # Return the clean counts matrix
-  return(count_matrix)
+  return(list(count_matrix = count_matrix, clean_raw_counts = clean_raw_counts, dge = dge))
 }
 
 
