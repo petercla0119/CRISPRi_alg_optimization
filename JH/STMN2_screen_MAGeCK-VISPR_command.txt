@@ -1,0 +1,38 @@
+library: ../20200513_library_1_2_unbalanced_dJR051_simpleRmG.txt
+species: homo_sapiens
+assembly: hg38
+ 
+targets:
+    genes: true
+sgrnas:
+    update-efficiency: false
+    trim-5: AUTO
+    len: AUTO
+    annotate-sgrna: false
+    annotate-sgrna-efficiency: false
+ 
+samples:
+    Low_1:
+       - ../hits.JH8105_1_S1_L001_R1_001.fastq.gz
+       - ../hits.JH8105_1_S1_L002_R1_001.fastq.gz
+    Low_2:
+       - ../hits.JH8105_2_S2_L001_R1_001.fastq.gz
+       - ../hits.JH8105_2_S2_L002_R1_001.fastq.gz
+    Low_3:
+       - ../hits.JH8105_3_S3_L001_R1_001.fastq.gz
+       - ../hits.JH8105_3_S3_L002_R1_001.fastq.gz
+    High_1:
+       - ../hits.JH8105_4_S4_L001_R1_001.fastq.gz
+       - ../hits.JH8105_4_S4_L002_R1_001.fastq.gz
+    High_2:
+       - ../hits.JH8105_5_S5_L001_R1_001.fastq.gz
+       - ../hits.JH8105_5_S5_L002_R1_001.fastq.gz
+    High_3:
+       - ../hits.JH8105_6_S6_L001_R1_001.fastq.gz
+       - ../hits.JH8105_6_S6_L002_R1_001.fastq.gz
+ 
+countpair: false
+ 
+norm_method: control
+control_sgrna: ../20200513_library_1_2_unbalanced_NegControlList.txt
+ 

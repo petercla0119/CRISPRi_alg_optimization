@@ -3,7 +3,11 @@
 .RData
 .Ruserdata
 00_references_and_code/
+00_library_design/
+01_sorting-based_screens/
+NINDS/
 01_raw_files/
 02_processed_data/
 99_dummy_data/
 CRISPR_project_20240820_NINDS/0_references_and_code/
+JH/

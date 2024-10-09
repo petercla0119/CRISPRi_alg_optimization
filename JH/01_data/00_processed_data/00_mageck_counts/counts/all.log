@@ -1,0 +1,771 @@
+INFO  @ Mon, 05 Dec 2022 13:14:42: Parameters: /opt/conda/envs/mageck-vispr/bin/mageck count --output-prefix results/count/all --norm-method control --list-seq ../20200513_library_1_2_unbalanced_dJR051_simpleRmG.txt --fastq ../hits.JH8105_1_S1_L001_R1_001.fastq.gz,../hits.JH8105_1_S1_L002_R1_001.fastq.gz ../hits.JH8105_2_S2_L001_R1_001.fastq.gz,../hits.JH8105_2_S2_L002_R1_001.fastq.gz ../hits.JH8105_3_S3_L001_R1_001.fastq.gz,../hits.JH8105_3_S3_L002_R1_001.fastq.gz ../hits.JH8105_4_S4_L001_R1_001.fastq.gz,../hits.JH8105_4_S4_L002_R1_001.fastq.gz ../hits.JH8105_5_S5_L001_R1_001.fastq.gz,../hits.JH8105_5_S5_L002_R1_001.fastq.gz ../hits.JH8105_6_S6_L001_R1_001.fastq.gz,../hits.JH8105_6_S6_L002_R1_001.fastq.gz --sample-label Low_1,Low_2,Low_3,High_1,High_2,High_3 --count-pair False --control-sgrna ../20200513_library_1_2_unbalanced_NegControlList.txt --trim-5 AUTO 
+INFO  @ Mon, 05 Dec 2022 13:14:42: Welcome to MAGeCK v0.5.9.5. Command: count 
+INFO  @ Mon, 05 Dec 2022 13:14:42: Header line of the library file detected; skip the first line ... 
+INFO  @ Mon, 05 Dec 2022 13:14:42: Loading 21339 predefined sgRNAs. 
+WARNING @ Mon, 05 Dec 2022 13:14:42: There are 215 sgRNAs with duplicated sequences. 
+INFO  @ Mon, 05 Dec 2022 13:14:43: Parsing FASTQ file ../hits.JH8105_1_S1_L001_R1_001.fastq.gz... 
+INFO  @ Mon, 05 Dec 2022 13:14:43: Determining the trim-5 length of FASTQ file ../hits.JH8105_1_S1_L001_R1_001.fastq.gz... 
+INFO  @ Mon, 05 Dec 2022 13:14:43: Possible gRNA lengths:19 
+INFO  @ Mon, 05 Dec 2022 13:14:43: Processing 0M reads ... 
+INFO  @ Mon, 05 Dec 2022 13:14:43: Read length:20 
+INFO  @ Mon, 05 Dec 2022 13:14:43: Total tested reads: 100001, mapped: 100000(0.999990000099999) 
+INFO  @ Mon, 05 Dec 2022 13:14:43: --trim-5 test data: (trim_length reads fraction) 
+INFO  @ Mon, 05 Dec 2022 13:14:43: 0	100000	1.0 
+INFO  @ Mon, 05 Dec 2022 13:14:43: Auto determination of trim5 results: 0 
+INFO  @ Mon, 05 Dec 2022 13:14:43: Possible gRNA lengths:19 
+INFO  @ Mon, 05 Dec 2022 13:14:43: Processing 0M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:14:47: Processing 1M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:14:50: Processing 2M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:14:54: Processing 3M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:14:57: Processing 4M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:15:01: Processing 5M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:15:04: Processing 6M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:15:08: Processing 7M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:15:11: Processing 8M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:15:15: Processing 9M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:15:18: Processing 10M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:15:22: Processing 11M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:15:25: Processing 12M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:15:29: Processing 13M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:15:33: Processing 14M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:15:36: Processing 15M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:15:40: Processing 16M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:15:44: Processing 17M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:15:48: Processing 18M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:15:51: Processing 19M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:15:55: Processing 20M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:15:59: Processing 21M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:16:03: Processing 22M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:16:06: Processing 23M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:16:10: Processing 24M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:16:14: Processing 25M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:16:18: Processing 26M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:16:22: Processing 27M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:16:26: Processing 28M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:16:29: Processing 29M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:16:33: Processing 30M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:16:36: Processing 31M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:16:40: Processing 32M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:16:43: Processing 33M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:16:46: Processing 34M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:16:48: Processing 35M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:16:53: Processing 36M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:16:56: Processing 37M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:16:59: Processing 38M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:17:01: Processing 39M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:17:04: Processing 40M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:17:06: Processing 41M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:17:09: Processing 42M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:17:11: Processing 43M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:17:13: Total: 43718952. 
+INFO  @ Mon, 05 Dec 2022 13:17:13: Mapped: 43718952. 
+INFO  @ Mon, 05 Dec 2022 13:17:13: Parsing FASTQ file ../hits.JH8105_1_S1_L002_R1_001.fastq.gz... 
+INFO  @ Mon, 05 Dec 2022 13:17:13: Determining the trim-5 length of FASTQ file ../hits.JH8105_1_S1_L002_R1_001.fastq.gz... 
+INFO  @ Mon, 05 Dec 2022 13:17:13: Possible gRNA lengths:19 
+INFO  @ Mon, 05 Dec 2022 13:17:13: Processing 0M reads ... 
+INFO  @ Mon, 05 Dec 2022 13:17:13: Read length:20 
+INFO  @ Mon, 05 Dec 2022 13:17:13: Total tested reads: 100001, mapped: 100000(0.999990000099999) 
+INFO  @ Mon, 05 Dec 2022 13:17:13: --trim-5 test data: (trim_length reads fraction) 
+INFO  @ Mon, 05 Dec 2022 13:17:13: 0	100000	1.0 
+INFO  @ Mon, 05 Dec 2022 13:17:13: Auto determination of trim5 results: 0 
+INFO  @ Mon, 05 Dec 2022 13:17:13: Possible gRNA lengths:19 
+INFO  @ Mon, 05 Dec 2022 13:17:13: Processing 0M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:17:17: Processing 1M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:17:20: Processing 2M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:17:23: Processing 3M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:17:26: Processing 4M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:17:29: Processing 5M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:17:32: Processing 6M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:17:35: Processing 7M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:17:39: Processing 8M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:17:41: Processing 9M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:17:44: Processing 10M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:17:46: Processing 11M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:17:48: Processing 12M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:17:51: Processing 13M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:17:55: Processing 14M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:17:57: Processing 15M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:17:59: Processing 16M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:01: Processing 17M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:03: Processing 18M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:05: Processing 19M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:06: Processing 20M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:08: Processing 21M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:10: Processing 22M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:12: Processing 23M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:14: Processing 24M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:16: Processing 25M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:18: Processing 26M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:20: Processing 27M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:22: Processing 28M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:24: Processing 29M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:26: Processing 30M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:28: Processing 31M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:29: Processing 32M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:31: Processing 33M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:33: Processing 34M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:35: Processing 35M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:37: Processing 36M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:39: Processing 37M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:41: Processing 38M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:43: Processing 39M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:45: Processing 40M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:47: Processing 41M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:49: Processing 42M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:51: Processing 43M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:53: Processing 44M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:54: Processing 45M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:55: Total: 45560656. 
+INFO  @ Mon, 05 Dec 2022 13:18:55: Mapped: 45560656. 
+INFO  @ Mon, 05 Dec 2022 13:18:56: Parsing FASTQ file ../hits.JH8105_2_S2_L001_R1_001.fastq.gz... 
+INFO  @ Mon, 05 Dec 2022 13:18:56: Determining the trim-5 length of FASTQ file ../hits.JH8105_2_S2_L001_R1_001.fastq.gz... 
+INFO  @ Mon, 05 Dec 2022 13:18:56: Possible gRNA lengths:19 
+INFO  @ Mon, 05 Dec 2022 13:18:56: Processing 0M reads ... 
+INFO  @ Mon, 05 Dec 2022 13:18:56: Read length:20 
+INFO  @ Mon, 05 Dec 2022 13:18:56: Total tested reads: 100001, mapped: 100000(0.999990000099999) 
+INFO  @ Mon, 05 Dec 2022 13:18:56: --trim-5 test data: (trim_length reads fraction) 
+INFO  @ Mon, 05 Dec 2022 13:18:56: 0	100000	1.0 
+INFO  @ Mon, 05 Dec 2022 13:18:56: Auto determination of trim5 results: 0 
+INFO  @ Mon, 05 Dec 2022 13:18:56: Possible gRNA lengths:19 
+INFO  @ Mon, 05 Dec 2022 13:18:56: Processing 0M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:18:58: Processing 1M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:00: Processing 2M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:01: Processing 3M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:03: Processing 4M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:05: Processing 5M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:07: Processing 6M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:09: Processing 7M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:11: Processing 8M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:13: Processing 9M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:15: Processing 10M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:17: Processing 11M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:19: Processing 12M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:21: Processing 13M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:23: Processing 14M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:24: Processing 15M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:26: Processing 16M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:28: Processing 17M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:30: Processing 18M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:32: Processing 19M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:34: Processing 20M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:36: Processing 21M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:38: Processing 22M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:40: Processing 23M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:42: Processing 24M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:44: Processing 25M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:46: Processing 26M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:48: Processing 27M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:49: Processing 28M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:51: Processing 29M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:53: Processing 30M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:55: Processing 31M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:57: Processing 32M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:19:59: Processing 33M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:01: Processing 34M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:03: Processing 35M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:05: Processing 36M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:07: Processing 37M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:09: Processing 38M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:11: Processing 39M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:13: Processing 40M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:14: Total: 40553489. 
+INFO  @ Mon, 05 Dec 2022 13:20:14: Mapped: 40553489. 
+INFO  @ Mon, 05 Dec 2022 13:20:14: Parsing FASTQ file ../hits.JH8105_2_S2_L002_R1_001.fastq.gz... 
+INFO  @ Mon, 05 Dec 2022 13:20:14: Determining the trim-5 length of FASTQ file ../hits.JH8105_2_S2_L002_R1_001.fastq.gz... 
+INFO  @ Mon, 05 Dec 2022 13:20:14: Possible gRNA lengths:19 
+INFO  @ Mon, 05 Dec 2022 13:20:14: Processing 0M reads ... 
+INFO  @ Mon, 05 Dec 2022 13:20:14: Read length:20 
+INFO  @ Mon, 05 Dec 2022 13:20:14: Total tested reads: 100001, mapped: 100000(0.999990000099999) 
+INFO  @ Mon, 05 Dec 2022 13:20:14: --trim-5 test data: (trim_length reads fraction) 
+INFO  @ Mon, 05 Dec 2022 13:20:14: 0	100000	1.0 
+INFO  @ Mon, 05 Dec 2022 13:20:14: Auto determination of trim5 results: 0 
+INFO  @ Mon, 05 Dec 2022 13:20:14: Possible gRNA lengths:19 
+INFO  @ Mon, 05 Dec 2022 13:20:14: Processing 0M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:16: Processing 1M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:18: Processing 2M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:20: Processing 3M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:22: Processing 4M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:24: Processing 5M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:26: Processing 6M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:28: Processing 7M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:30: Processing 8M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:32: Processing 9M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:34: Processing 10M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:36: Processing 11M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:38: Processing 12M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:40: Processing 13M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:42: Processing 14M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:44: Processing 15M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:46: Processing 16M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:48: Processing 17M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:50: Processing 18M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:52: Processing 19M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:54: Processing 20M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:56: Processing 21M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:20:58: Processing 22M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:00: Processing 23M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:02: Processing 24M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:04: Processing 25M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:06: Processing 26M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:08: Processing 27M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:10: Processing 28M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:12: Processing 29M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:14: Processing 30M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:16: Processing 31M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:18: Processing 32M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:20: Processing 33M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:22: Processing 34M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:24: Processing 35M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:26: Processing 36M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:28: Processing 37M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:30: Processing 38M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:31: Processing 39M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:33: Processing 40M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:35: Processing 41M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:37: Processing 42M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:38: Total: 42377934. 
+INFO  @ Mon, 05 Dec 2022 13:21:38: Mapped: 42377934. 
+INFO  @ Mon, 05 Dec 2022 13:21:38: Parsing FASTQ file ../hits.JH8105_3_S3_L001_R1_001.fastq.gz... 
+INFO  @ Mon, 05 Dec 2022 13:21:38: Determining the trim-5 length of FASTQ file ../hits.JH8105_3_S3_L001_R1_001.fastq.gz... 
+INFO  @ Mon, 05 Dec 2022 13:21:38: Possible gRNA lengths:19 
+INFO  @ Mon, 05 Dec 2022 13:21:38: Processing 0M reads ... 
+INFO  @ Mon, 05 Dec 2022 13:21:38: Read length:20 
+INFO  @ Mon, 05 Dec 2022 13:21:38: Total tested reads: 100001, mapped: 100000(0.999990000099999) 
+INFO  @ Mon, 05 Dec 2022 13:21:38: --trim-5 test data: (trim_length reads fraction) 
+INFO  @ Mon, 05 Dec 2022 13:21:38: 0	100000	1.0 
+INFO  @ Mon, 05 Dec 2022 13:21:38: Auto determination of trim5 results: 0 
+INFO  @ Mon, 05 Dec 2022 13:21:38: Possible gRNA lengths:19 
+INFO  @ Mon, 05 Dec 2022 13:21:38: Processing 0M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:40: Processing 1M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:42: Processing 2M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:44: Processing 3M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:46: Processing 4M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:48: Processing 5M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:50: Processing 6M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:52: Processing 7M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:54: Processing 8M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:56: Processing 9M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:21:58: Processing 10M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:00: Processing 11M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:02: Processing 12M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:04: Processing 13M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:06: Processing 14M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:07: Processing 15M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:09: Processing 16M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:11: Processing 17M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:13: Processing 18M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:15: Processing 19M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:17: Processing 20M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:19: Processing 21M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:21: Processing 22M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:23: Processing 23M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:25: Processing 24M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:27: Processing 25M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:29: Processing 26M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:31: Processing 27M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:33: Processing 28M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:35: Processing 29M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:37: Processing 30M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:39: Processing 31M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:40: Processing 32M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:42: Processing 33M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:44: Processing 34M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:46: Processing 35M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:48: Processing 36M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:50: Processing 37M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:52: Processing 38M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:54: Processing 39M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:56: Processing 40M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:22:58: Processing 41M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:00: Processing 42M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:02: Processing 43M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:04: Processing 44M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:06: Processing 45M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:08: Processing 46M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:10: Processing 47M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:12: Processing 48M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:14: Processing 49M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:15: Processing 50M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:17: Processing 51M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:18: Total: 51495403. 
+INFO  @ Mon, 05 Dec 2022 13:23:18: Mapped: 51495403. 
+INFO  @ Mon, 05 Dec 2022 13:23:18: Parsing FASTQ file ../hits.JH8105_3_S3_L002_R1_001.fastq.gz... 
+INFO  @ Mon, 05 Dec 2022 13:23:18: Determining the trim-5 length of FASTQ file ../hits.JH8105_3_S3_L002_R1_001.fastq.gz... 
+INFO  @ Mon, 05 Dec 2022 13:23:18: Possible gRNA lengths:19 
+INFO  @ Mon, 05 Dec 2022 13:23:18: Processing 0M reads ... 
+INFO  @ Mon, 05 Dec 2022 13:23:19: Read length:20 
+INFO  @ Mon, 05 Dec 2022 13:23:19: Total tested reads: 100001, mapped: 100000(0.999990000099999) 
+INFO  @ Mon, 05 Dec 2022 13:23:19: --trim-5 test data: (trim_length reads fraction) 
+INFO  @ Mon, 05 Dec 2022 13:23:19: 0	100000	1.0 
+INFO  @ Mon, 05 Dec 2022 13:23:19: Auto determination of trim5 results: 0 
+INFO  @ Mon, 05 Dec 2022 13:23:19: Possible gRNA lengths:19 
+INFO  @ Mon, 05 Dec 2022 13:23:19: Processing 0M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:21: Processing 1M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:23: Processing 2M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:24: Processing 3M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:26: Processing 4M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:28: Processing 5M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:30: Processing 6M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:32: Processing 7M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:34: Processing 8M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:36: Processing 9M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:38: Processing 10M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:40: Processing 11M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:42: Processing 12M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:44: Processing 13M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:46: Processing 14M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:48: Processing 15M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:50: Processing 16M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:52: Processing 17M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:54: Processing 18M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:56: Processing 19M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:58: Processing 20M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:23:59: Processing 21M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:01: Processing 22M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:03: Processing 23M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:05: Processing 24M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:07: Processing 25M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:09: Processing 26M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:11: Processing 27M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:13: Processing 28M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:15: Processing 29M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:17: Processing 30M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:19: Processing 31M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:21: Processing 32M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:23: Processing 33M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:25: Processing 34M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:27: Processing 35M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:29: Processing 36M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:31: Processing 37M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:33: Processing 38M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:35: Processing 39M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:36: Processing 40M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:38: Processing 41M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:40: Processing 42M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:42: Processing 43M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:44: Processing 44M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:46: Processing 45M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:48: Processing 46M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:50: Processing 47M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:52: Processing 48M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:54: Processing 49M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:56: Processing 50M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:24:58: Processing 51M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:00: Processing 52M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:02: Processing 53M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:04: Processing 54M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:04: Total: 54023585. 
+INFO  @ Mon, 05 Dec 2022 13:25:04: Mapped: 54023585. 
+INFO  @ Mon, 05 Dec 2022 13:25:04: Parsing FASTQ file ../hits.JH8105_4_S4_L001_R1_001.fastq.gz... 
+INFO  @ Mon, 05 Dec 2022 13:25:04: Determining the trim-5 length of FASTQ file ../hits.JH8105_4_S4_L001_R1_001.fastq.gz... 
+INFO  @ Mon, 05 Dec 2022 13:25:04: Possible gRNA lengths:19 
+INFO  @ Mon, 05 Dec 2022 13:25:04: Processing 0M reads ... 
+INFO  @ Mon, 05 Dec 2022 13:25:04: Read length:20 
+INFO  @ Mon, 05 Dec 2022 13:25:04: Total tested reads: 100001, mapped: 100000(0.999990000099999) 
+INFO  @ Mon, 05 Dec 2022 13:25:04: --trim-5 test data: (trim_length reads fraction) 
+INFO  @ Mon, 05 Dec 2022 13:25:04: 0	100000	1.0 
+INFO  @ Mon, 05 Dec 2022 13:25:04: Auto determination of trim5 results: 0 
+INFO  @ Mon, 05 Dec 2022 13:25:04: Possible gRNA lengths:19 
+INFO  @ Mon, 05 Dec 2022 13:25:04: Processing 0M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:07: Processing 1M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:09: Processing 2M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:11: Processing 3M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:13: Processing 4M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:15: Processing 5M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:17: Processing 6M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:19: Processing 7M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:21: Processing 8M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:23: Processing 9M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:25: Processing 10M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:27: Processing 11M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:29: Processing 12M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:31: Processing 13M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:33: Processing 14M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:35: Processing 15M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:37: Processing 16M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:38: Processing 17M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:40: Processing 18M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:43: Processing 19M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:45: Processing 20M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:47: Processing 21M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:49: Processing 22M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:51: Processing 23M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:53: Processing 24M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:55: Processing 25M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:57: Processing 26M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:25:59: Processing 27M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:01: Processing 28M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:03: Processing 29M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:05: Processing 30M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:07: Processing 31M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:10: Processing 32M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:12: Processing 33M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:14: Processing 34M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:16: Processing 35M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:18: Processing 36M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:20: Processing 37M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:21: Total: 37337429. 
+INFO  @ Mon, 05 Dec 2022 13:26:21: Mapped: 37337429. 
+INFO  @ Mon, 05 Dec 2022 13:26:21: Parsing FASTQ file ../hits.JH8105_4_S4_L002_R1_001.fastq.gz... 
+INFO  @ Mon, 05 Dec 2022 13:26:21: Determining the trim-5 length of FASTQ file ../hits.JH8105_4_S4_L002_R1_001.fastq.gz... 
+INFO  @ Mon, 05 Dec 2022 13:26:21: Possible gRNA lengths:19 
+INFO  @ Mon, 05 Dec 2022 13:26:21: Processing 0M reads ... 
+INFO  @ Mon, 05 Dec 2022 13:26:21: Read length:20 
+INFO  @ Mon, 05 Dec 2022 13:26:21: Total tested reads: 100001, mapped: 100000(0.999990000099999) 
+INFO  @ Mon, 05 Dec 2022 13:26:21: --trim-5 test data: (trim_length reads fraction) 
+INFO  @ Mon, 05 Dec 2022 13:26:21: 0	100000	1.0 
+INFO  @ Mon, 05 Dec 2022 13:26:21: Auto determination of trim5 results: 0 
+INFO  @ Mon, 05 Dec 2022 13:26:21: Possible gRNA lengths:19 
+INFO  @ Mon, 05 Dec 2022 13:26:21: Processing 0M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:23: Processing 1M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:25: Processing 2M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:27: Processing 3M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:29: Processing 4M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:31: Processing 5M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:33: Processing 6M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:35: Processing 7M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:37: Processing 8M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:39: Processing 9M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:41: Processing 10M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:42: Processing 11M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:44: Processing 12M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:46: Processing 13M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:48: Processing 14M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:50: Processing 15M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:52: Processing 16M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:54: Processing 17M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:56: Processing 18M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:26:58: Processing 19M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:00: Processing 20M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:02: Processing 21M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:04: Processing 22M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:06: Processing 23M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:08: Processing 24M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:09: Processing 25M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:11: Processing 26M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:13: Processing 27M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:15: Processing 28M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:17: Processing 29M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:19: Processing 30M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:21: Processing 31M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:23: Processing 32M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:25: Processing 33M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:27: Processing 34M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:29: Processing 35M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:31: Processing 36M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:33: Processing 37M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:34: Processing 38M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:36: Total: 38986079. 
+INFO  @ Mon, 05 Dec 2022 13:27:36: Mapped: 38986079. 
+INFO  @ Mon, 05 Dec 2022 13:27:36: Parsing FASTQ file ../hits.JH8105_5_S5_L001_R1_001.fastq.gz... 
+INFO  @ Mon, 05 Dec 2022 13:27:36: Determining the trim-5 length of FASTQ file ../hits.JH8105_5_S5_L001_R1_001.fastq.gz... 
+INFO  @ Mon, 05 Dec 2022 13:27:36: Possible gRNA lengths:19 
+INFO  @ Mon, 05 Dec 2022 13:27:36: Processing 0M reads ... 
+INFO  @ Mon, 05 Dec 2022 13:27:37: Read length:20 
+INFO  @ Mon, 05 Dec 2022 13:27:37: Total tested reads: 100001, mapped: 100000(0.999990000099999) 
+INFO  @ Mon, 05 Dec 2022 13:27:37: --trim-5 test data: (trim_length reads fraction) 
+INFO  @ Mon, 05 Dec 2022 13:27:37: 0	100000	1.0 
+INFO  @ Mon, 05 Dec 2022 13:27:37: Auto determination of trim5 results: 0 
+INFO  @ Mon, 05 Dec 2022 13:27:37: Possible gRNA lengths:19 
+INFO  @ Mon, 05 Dec 2022 13:27:37: Processing 0M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:39: Processing 1M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:40: Processing 2M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:42: Processing 3M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:44: Processing 4M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:46: Processing 5M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:48: Processing 6M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:50: Processing 7M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:52: Processing 8M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:54: Processing 9M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:56: Processing 10M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:27:58: Processing 11M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:00: Processing 12M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:02: Processing 13M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:04: Processing 14M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:06: Processing 15M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:07: Processing 16M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:09: Processing 17M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:11: Processing 18M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:13: Processing 19M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:15: Processing 20M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:17: Processing 21M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:19: Processing 22M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:21: Processing 23M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:23: Processing 24M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:25: Processing 25M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:27: Processing 26M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:29: Processing 27M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:31: Processing 28M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:33: Processing 29M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:35: Processing 30M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:36: Processing 31M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:38: Processing 32M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:40: Processing 33M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:42: Processing 34M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:44: Processing 35M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:46: Processing 36M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:48: Processing 37M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:50: Total: 37941677. 
+INFO  @ Mon, 05 Dec 2022 13:28:50: Mapped: 37941677. 
+INFO  @ Mon, 05 Dec 2022 13:28:50: Parsing FASTQ file ../hits.JH8105_5_S5_L002_R1_001.fastq.gz... 
+INFO  @ Mon, 05 Dec 2022 13:28:50: Determining the trim-5 length of FASTQ file ../hits.JH8105_5_S5_L002_R1_001.fastq.gz... 
+INFO  @ Mon, 05 Dec 2022 13:28:50: Possible gRNA lengths:19 
+INFO  @ Mon, 05 Dec 2022 13:28:50: Processing 0M reads ... 
+INFO  @ Mon, 05 Dec 2022 13:28:50: Read length:20 
+INFO  @ Mon, 05 Dec 2022 13:28:50: Total tested reads: 100001, mapped: 100000(0.999990000099999) 
+INFO  @ Mon, 05 Dec 2022 13:28:50: --trim-5 test data: (trim_length reads fraction) 
+INFO  @ Mon, 05 Dec 2022 13:28:50: 0	100000	1.0 
+INFO  @ Mon, 05 Dec 2022 13:28:50: Auto determination of trim5 results: 0 
+INFO  @ Mon, 05 Dec 2022 13:28:50: Possible gRNA lengths:19 
+INFO  @ Mon, 05 Dec 2022 13:28:50: Processing 0M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:52: Processing 1M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:54: Processing 2M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:56: Processing 3M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:28:58: Processing 4M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:00: Processing 5M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:02: Processing 6M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:04: Processing 7M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:06: Processing 8M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:08: Processing 9M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:10: Processing 10M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:12: Processing 11M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:14: Processing 12M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:17: Processing 13M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:19: Processing 14M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:21: Processing 15M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:23: Processing 16M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:25: Processing 17M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:27: Processing 18M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:29: Processing 19M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:31: Processing 20M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:33: Processing 21M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:35: Processing 22M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:37: Processing 23M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:39: Processing 24M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:41: Processing 25M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:42: Processing 26M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:44: Processing 27M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:46: Processing 28M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:48: Processing 29M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:50: Processing 30M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:52: Processing 31M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:54: Processing 32M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:56: Processing 33M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:29:58: Processing 34M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:00: Processing 35M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:02: Processing 36M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:04: Processing 37M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:06: Processing 38M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:08: Processing 39M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:09: Total: 39892307. 
+INFO  @ Mon, 05 Dec 2022 13:30:09: Mapped: 39892307. 
+INFO  @ Mon, 05 Dec 2022 13:30:09: Parsing FASTQ file ../hits.JH8105_6_S6_L001_R1_001.fastq.gz... 
+INFO  @ Mon, 05 Dec 2022 13:30:09: Determining the trim-5 length of FASTQ file ../hits.JH8105_6_S6_L001_R1_001.fastq.gz... 
+INFO  @ Mon, 05 Dec 2022 13:30:09: Possible gRNA lengths:19 
+INFO  @ Mon, 05 Dec 2022 13:30:09: Processing 0M reads ... 
+INFO  @ Mon, 05 Dec 2022 13:30:10: Read length:20 
+INFO  @ Mon, 05 Dec 2022 13:30:10: Total tested reads: 100001, mapped: 100000(0.999990000099999) 
+INFO  @ Mon, 05 Dec 2022 13:30:10: --trim-5 test data: (trim_length reads fraction) 
+INFO  @ Mon, 05 Dec 2022 13:30:10: 0	100000	1.0 
+INFO  @ Mon, 05 Dec 2022 13:30:10: Auto determination of trim5 results: 0 
+INFO  @ Mon, 05 Dec 2022 13:30:10: Possible gRNA lengths:19 
+INFO  @ Mon, 05 Dec 2022 13:30:10: Processing 0M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:12: Processing 1M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:13: Processing 2M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:15: Processing 3M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:17: Processing 4M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:19: Processing 5M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:21: Processing 6M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:23: Processing 7M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:25: Processing 8M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:27: Processing 9M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:29: Processing 10M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:31: Processing 11M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:33: Processing 12M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:35: Processing 13M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:37: Processing 14M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:39: Processing 15M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:41: Processing 16M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:42: Processing 17M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:44: Processing 18M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:46: Processing 19M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:48: Processing 20M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:50: Processing 21M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:52: Processing 22M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:54: Processing 23M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:56: Processing 24M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:30:58: Processing 25M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:00: Processing 26M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:02: Processing 27M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:04: Processing 28M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:06: Processing 29M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:08: Processing 30M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:09: Processing 31M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:11: Processing 32M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:13: Processing 33M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:15: Processing 34M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:17: Processing 35M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:19: Processing 36M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:21: Processing 37M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:23: Processing 38M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:25: Processing 39M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:27: Processing 40M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:29: Processing 41M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:31: Processing 42M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:33: Processing 43M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:35: Processing 44M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:35: Total: 44368672. 
+INFO  @ Mon, 05 Dec 2022 13:31:35: Mapped: 44368672. 
+INFO  @ Mon, 05 Dec 2022 13:31:35: Parsing FASTQ file ../hits.JH8105_6_S6_L002_R1_001.fastq.gz... 
+INFO  @ Mon, 05 Dec 2022 13:31:35: Determining the trim-5 length of FASTQ file ../hits.JH8105_6_S6_L002_R1_001.fastq.gz... 
+INFO  @ Mon, 05 Dec 2022 13:31:35: Possible gRNA lengths:19 
+INFO  @ Mon, 05 Dec 2022 13:31:35: Processing 0M reads ... 
+INFO  @ Mon, 05 Dec 2022 13:31:36: Read length:20 
+INFO  @ Mon, 05 Dec 2022 13:31:36: Total tested reads: 100001, mapped: 100000(0.999990000099999) 
+INFO  @ Mon, 05 Dec 2022 13:31:36: --trim-5 test data: (trim_length reads fraction) 
+INFO  @ Mon, 05 Dec 2022 13:31:36: 0	100000	1.0 
+INFO  @ Mon, 05 Dec 2022 13:31:36: Auto determination of trim5 results: 0 
+INFO  @ Mon, 05 Dec 2022 13:31:36: Possible gRNA lengths:19 
+INFO  @ Mon, 05 Dec 2022 13:31:36: Processing 0M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:37: Processing 1M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:39: Processing 2M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:41: Processing 3M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:43: Processing 4M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:45: Processing 5M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:47: Processing 6M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:49: Processing 7M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:51: Processing 8M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:53: Processing 9M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:55: Processing 10M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:57: Processing 11M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:31:59: Processing 12M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:01: Processing 13M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:02: Processing 14M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:04: Processing 15M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:06: Processing 16M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:08: Processing 17M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:10: Processing 18M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:12: Processing 19M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:14: Processing 20M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:16: Processing 21M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:18: Processing 22M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:20: Processing 23M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:22: Processing 24M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:24: Processing 25M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:26: Processing 26M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:28: Processing 27M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:30: Processing 28M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:31: Processing 29M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:33: Processing 30M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:35: Processing 31M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:37: Processing 32M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:39: Processing 33M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:41: Processing 34M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:43: Processing 35M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:45: Processing 36M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:47: Processing 37M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:49: Processing 38M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:51: Processing 39M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:53: Processing 40M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:55: Processing 41M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:57: Processing 42M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:32:59: Processing 43M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:33:00: Processing 44M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:33:02: Processing 45M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:33:04: Processing 46M reads .. 
+INFO  @ Mon, 05 Dec 2022 13:33:05: Total: 46403720. 
+INFO  @ Mon, 05 Dec 2022 13:33:05: Mapped: 46403720. 
+INFO  @ Mon, 05 Dec 2022 13:33:05: 1026 out of 1027 control sgRNAs are found in count table. 
+INFO  @ Mon, 05 Dec 2022 13:33:05: Loaded 1027 control sgRNAs from ../20200513_library_1_2_unbalanced_NegControlList.txt 
+INFO  @ Mon, 05 Dec 2022 13:33:05: control sgRNAs for normalization:1026 
+DEBUG @ Mon, 05 Dec 2022 13:33:05: Initial (total) size factor: 0.9549468138189809 1.063704835881913 0.8125819665602063 1.17752796526681 1.0904282620415295 0.9844863124171936 
+DEBUG @ Mon, 05 Dec 2022 13:33:05: Median factor: 0.9320534049383743 1.0390851014194218 0.7972088157072208 1.1529188458225539 1.074904280680409 0.9608833845724768 
+INFO  @ Mon, 05 Dec 2022 13:33:05: Final size factor: 0.9320534049383743 1.0390851014194218 0.7972088157072208 1.1529188458225539 1.074904280680409 0.9608833845724768 
+INFO  @ Mon, 05 Dec 2022 13:33:06: Summary of file ../hits.JH8105_1_S1_L001_R1_001.fastq.gz: 
+INFO  @ Mon, 05 Dec 2022 13:33:06: label	Low_1 
+INFO  @ Mon, 05 Dec 2022 13:33:06: reads	43718952 
+INFO  @ Mon, 05 Dec 2022 13:33:06: mappedreads	43718952 
+INFO  @ Mon, 05 Dec 2022 13:33:06: totalsgrnas	21339 
+INFO  @ Mon, 05 Dec 2022 13:33:06: zerosgrnas	660 
+INFO  @ Mon, 05 Dec 2022 13:33:06: giniindex	0.10038527766077521 
+INFO  @ Mon, 05 Dec 2022 13:33:06: Summary of file ../hits.JH8105_1_S1_L002_R1_001.fastq.gz: 
+INFO  @ Mon, 05 Dec 2022 13:33:06: label	Low_1 
+INFO  @ Mon, 05 Dec 2022 13:33:06: reads	45560656 
+INFO  @ Mon, 05 Dec 2022 13:33:06: mappedreads	45560656 
+INFO  @ Mon, 05 Dec 2022 13:33:06: totalsgrnas	21339 
+INFO  @ Mon, 05 Dec 2022 13:33:06: zerosgrnas	645 
+INFO  @ Mon, 05 Dec 2022 13:33:06: giniindex	0.10000755430584496 
+INFO  @ Mon, 05 Dec 2022 13:33:06: Summary of file ../hits.JH8105_2_S2_L001_R1_001.fastq.gz: 
+INFO  @ Mon, 05 Dec 2022 13:33:06: label	Low_2 
+INFO  @ Mon, 05 Dec 2022 13:33:06: reads	40553489 
+INFO  @ Mon, 05 Dec 2022 13:33:06: mappedreads	40553489 
+INFO  @ Mon, 05 Dec 2022 13:33:06: totalsgrnas	21339 
+INFO  @ Mon, 05 Dec 2022 13:33:06: zerosgrnas	596 
+INFO  @ Mon, 05 Dec 2022 13:33:06: giniindex	0.09187776602971909 
+INFO  @ Mon, 05 Dec 2022 13:33:06: Summary of file ../hits.JH8105_2_S2_L002_R1_001.fastq.gz: 
+INFO  @ Mon, 05 Dec 2022 13:33:06: label	Low_2 
+INFO  @ Mon, 05 Dec 2022 13:33:06: reads	42377934 
+INFO  @ Mon, 05 Dec 2022 13:33:06: mappedreads	42377934 
+INFO  @ Mon, 05 Dec 2022 13:33:06: totalsgrnas	21339 
+INFO  @ Mon, 05 Dec 2022 13:33:06: zerosgrnas	598 
+INFO  @ Mon, 05 Dec 2022 13:33:06: giniindex	0.09142768120852107 
+INFO  @ Mon, 05 Dec 2022 13:33:06: Summary of file ../hits.JH8105_3_S3_L001_R1_001.fastq.gz: 
+INFO  @ Mon, 05 Dec 2022 13:33:06: label	Low_3 
+INFO  @ Mon, 05 Dec 2022 13:33:06: reads	51495403 
+INFO  @ Mon, 05 Dec 2022 13:33:06: mappedreads	51495403 
+INFO  @ Mon, 05 Dec 2022 13:33:06: totalsgrnas	21339 
+INFO  @ Mon, 05 Dec 2022 13:33:06: zerosgrnas	733 
+INFO  @ Mon, 05 Dec 2022 13:33:06: giniindex	0.10337305803057983 
+INFO  @ Mon, 05 Dec 2022 13:33:06: Summary of file ../hits.JH8105_3_S3_L002_R1_001.fastq.gz: 
+INFO  @ Mon, 05 Dec 2022 13:33:06: label	Low_3 
+INFO  @ Mon, 05 Dec 2022 13:33:06: reads	54023585 
+INFO  @ Mon, 05 Dec 2022 13:33:06: mappedreads	54023585 
+INFO  @ Mon, 05 Dec 2022 13:33:06: totalsgrnas	21339 
+INFO  @ Mon, 05 Dec 2022 13:33:06: zerosgrnas	700 
+INFO  @ Mon, 05 Dec 2022 13:33:06: giniindex	0.10264971090756614 
+INFO  @ Mon, 05 Dec 2022 13:33:06: Summary of file ../hits.JH8105_4_S4_L001_R1_001.fastq.gz: 
+INFO  @ Mon, 05 Dec 2022 13:33:06: label	High_1 
+INFO  @ Mon, 05 Dec 2022 13:33:06: reads	37337429 
+INFO  @ Mon, 05 Dec 2022 13:33:06: mappedreads	37337429 
+INFO  @ Mon, 05 Dec 2022 13:33:06: totalsgrnas	21339 
+INFO  @ Mon, 05 Dec 2022 13:33:06: zerosgrnas	736 
+INFO  @ Mon, 05 Dec 2022 13:33:06: giniindex	0.09782465731948142 
+INFO  @ Mon, 05 Dec 2022 13:33:06: Summary of file ../hits.JH8105_4_S4_L002_R1_001.fastq.gz: 
+INFO  @ Mon, 05 Dec 2022 13:33:06: label	High_1 
+INFO  @ Mon, 05 Dec 2022 13:33:06: reads	38986079 
+INFO  @ Mon, 05 Dec 2022 13:33:06: mappedreads	38986079 
+INFO  @ Mon, 05 Dec 2022 13:33:06: totalsgrnas	21339 
+INFO  @ Mon, 05 Dec 2022 13:33:06: zerosgrnas	732 
+INFO  @ Mon, 05 Dec 2022 13:33:06: giniindex	0.09749161286688024 
+INFO  @ Mon, 05 Dec 2022 13:33:06: Summary of file ../hits.JH8105_5_S5_L001_R1_001.fastq.gz: 
+INFO  @ Mon, 05 Dec 2022 13:33:06: label	High_2 
+INFO  @ Mon, 05 Dec 2022 13:33:06: reads	37941677 
+INFO  @ Mon, 05 Dec 2022 13:33:06: mappedreads	37941677 
+INFO  @ Mon, 05 Dec 2022 13:33:06: totalsgrnas	21339 
+INFO  @ Mon, 05 Dec 2022 13:33:06: zerosgrnas	734 
+INFO  @ Mon, 05 Dec 2022 13:33:06: giniindex	0.1062735790893039 
+INFO  @ Mon, 05 Dec 2022 13:33:06: Summary of file ../hits.JH8105_5_S5_L002_R1_001.fastq.gz: 
+INFO  @ Mon, 05 Dec 2022 13:33:06: label	High_2 
+INFO  @ Mon, 05 Dec 2022 13:33:06: reads	39892307 
+INFO  @ Mon, 05 Dec 2022 13:33:06: mappedreads	39892307 
+INFO  @ Mon, 05 Dec 2022 13:33:06: totalsgrnas	21339 
+INFO  @ Mon, 05 Dec 2022 13:33:06: zerosgrnas	704 
+INFO  @ Mon, 05 Dec 2022 13:33:06: giniindex	0.10557766523428247 
+INFO  @ Mon, 05 Dec 2022 13:33:06: Summary of file ../hits.JH8105_6_S6_L001_R1_001.fastq.gz: 
+INFO  @ Mon, 05 Dec 2022 13:33:06: label	High_3 
+INFO  @ Mon, 05 Dec 2022 13:33:06: reads	44368672 
+INFO  @ Mon, 05 Dec 2022 13:33:06: mappedreads	44368672 
+INFO  @ Mon, 05 Dec 2022 13:33:06: totalsgrnas	21339 
+INFO  @ Mon, 05 Dec 2022 13:33:06: zerosgrnas	555 
+INFO  @ Mon, 05 Dec 2022 13:33:06: giniindex	0.0924093502802168 
+INFO  @ Mon, 05 Dec 2022 13:33:06: Summary of file ../hits.JH8105_6_S6_L002_R1_001.fastq.gz: 
+INFO  @ Mon, 05 Dec 2022 13:33:06: label	High_3 
+INFO  @ Mon, 05 Dec 2022 13:33:06: reads	46403720 
+INFO  @ Mon, 05 Dec 2022 13:33:06: mappedreads	46403720 
+INFO  @ Mon, 05 Dec 2022 13:33:06: totalsgrnas	21339 
+INFO  @ Mon, 05 Dec 2022 13:33:06: zerosgrnas	526 
+INFO  @ Mon, 05 Dec 2022 13:33:06: giniindex	0.09196554192010042 
+INFO  @ Mon, 05 Dec 2022 13:33:06: Loading Rnw template file: /opt/conda/envs/mageck-vispr/lib/python3.9/site-packages/mageck/count_report.Rmd. 
+DEBUG @ Mon, 05 Dec 2022 13:33:06: Setting up the visualization module... 
+INFO  @ Mon, 05 Dec 2022 13:33:06: Loading Rnw template file: /opt/conda/envs/mageck-vispr/lib/python3.9/site-packages/mageck/fastq_template.Rnw. 
+DEBUG @ Mon, 05 Dec 2022 13:33:06: Setting up the visualization module... 

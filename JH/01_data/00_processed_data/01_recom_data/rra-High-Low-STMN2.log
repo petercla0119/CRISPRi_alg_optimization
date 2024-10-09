@@ -1,0 +1,96 @@
+INFO  @ Tue, 06 Jun 2023 13:13:49: Parameters: /opt/conda/envs/mageck-vispr/bin/mageck test --norm-method control --output-prefix results/test/rra-High-Low-STMN2 --count-table results/count/all.count.txt --control-sgrna ../20200513_library_1_2_unbalanced_NegControlList.txt --control-id Low_1_recom,Low_2_recom,Low_3_recom --treatment-id High_1_recom,High_2_recom,High_3_recom 
+INFO  @ Tue, 06 Jun 2023 13:13:49: Welcome to MAGeCK v0.5.9.5. Command: test 
+INFO  @ Tue, 06 Jun 2023 13:13:49: Loading count table from results/count/all.count.txt  
+INFO  @ Tue, 06 Jun 2023 13:13:49: Processing 1 lines.. 
+DEBUG @ Tue, 06 Jun 2023 13:13:49: Parsing error in line 1 (usually the header line). Skip this line. 
+INFO  @ Tue, 06 Jun 2023 13:13:49: Loaded 21339 records. 
+INFO  @ Tue, 06 Jun 2023 13:13:49: 1026 out of 1027 control sgRNAs are found in count table. 
+INFO  @ Tue, 06 Jun 2023 13:13:49: Loading Rnw template file: /opt/conda/envs/mageck-vispr/lib/python3.9/site-packages/mageck/test_report.Rmd. 
+DEBUG @ Tue, 06 Jun 2023 13:13:49: Setting up the visualization module... 
+INFO  @ Tue, 06 Jun 2023 13:13:49: Loading R template file: /opt/conda/envs/mageck-vispr/lib/python3.9/site-packages/mageck/plot_template.RTemplate. 
+INFO  @ Tue, 06 Jun 2023 13:13:49: Loading R template file: /opt/conda/envs/mageck-vispr/lib/python3.9/site-packages/mageck/plot_template_indvgene.RTemplate. 
+INFO  @ Tue, 06 Jun 2023 13:13:49: Loading Rnw template file: /opt/conda/envs/mageck-vispr/lib/python3.9/site-packages/mageck/plot_template.Rnw. 
+DEBUG @ Tue, 06 Jun 2023 13:13:49: Setting up the visualization module... 
+DEBUG @ Tue, 06 Jun 2023 13:13:49: Given sample labels: High_1_recom,High_2_recom,High_3_recom 
+DEBUG @ Tue, 06 Jun 2023 13:13:49: Converted index: 1 3 5 
+INFO  @ Tue, 06 Jun 2023 13:13:49: Treatment samples:High_1_recom,High_2_recom,High_3_recom 
+INFO  @ Tue, 06 Jun 2023 13:13:49: Treatment sample index:1,3,5 
+DEBUG @ Tue, 06 Jun 2023 13:13:49: Given sample labels: Low_1_recom,Low_2_recom,Low_3_recom 
+DEBUG @ Tue, 06 Jun 2023 13:13:49: Converted index: 0 2 4 
+INFO  @ Tue, 06 Jun 2023 13:13:49: Control samples:Low_1_recom,Low_2_recom,Low_3_recom 
+INFO  @ Tue, 06 Jun 2023 13:13:49: Control sample index:0,2,4 
+INFO  @ Tue, 06 Jun 2023 13:13:49: Loaded 1027 control sgRNAs from ../20200513_library_1_2_unbalanced_NegControlList.txt 
+INFO  @ Tue, 06 Jun 2023 13:13:49: control sgRNAs for normalization:1026 
+DEBUG @ Tue, 06 Jun 2023 13:13:49: Initial (total) size factor: 0.9615969809235195 0.8093407681782849 1.1273177103919918 1.075873432898526 1.2038228236821322 0.9282775327943538 
+DEBUG @ Tue, 06 Jun 2023 13:13:49: Median factor: 0.9401011700011219 0.7822070498281922 1.0886896168917157 1.043908571768686 1.1898000050362139 0.923298787055779 
+INFO  @ Tue, 06 Jun 2023 13:13:49: Final size factor: 0.9401011700011219 0.7822070498281922 1.0886896168917157 1.043908571768686 1.1898000050362139 0.923298787055779 
+INFO  @ Tue, 06 Jun 2023 13:13:49: Detecting outliers from variance estimation.. Avg read count:[1811.579522507815], Var: [2415467.296312168] 
+INFO  @ Tue, 06 Jun 2023 13:13:49: Skipping 237 sgRNAs from variance calculation because of their extreme high counts (> 4* STD (mean counts) ). 
+DEBUG @ Tue, 06 Jun 2023 13:13:49: Adjusted model: 1	6.668284213415985 
+INFO  @ Tue, 06 Jun 2023 13:13:49: Before RRA, 256 sgRNAs are removed with zero counts in both group(s). 
+INFO  @ Tue, 06 Jun 2023 13:13:49: Use qnorm to reversely calculate sgRNA scores ... 
+DEBUG @ Tue, 06 Jun 2023 13:13:49: lower test FDR cutoff: 0.27083432149124886 
+DEBUG @ Tue, 06 Jun 2023 13:13:49: higher test FDR cutoff: 0.3493335863017597 
+INFO  @ Tue, 06 Jun 2023 13:13:50: Running command: RRA -i results/test/rra-High-Low-STMN2.plow.txt -o results/test/rra-High-Low-STMN2.gene.low.txt -p 0.27083432149124886 --control ../20200513_library_1_2_unbalanced_NegControlList.txt --skip-gene NA --skip-gene na  
+INFO  @ Tue, 06 Jun 2023 13:13:52: Command message: 
+INFO  @ Tue, 06 Jun 2023 13:13:52:   Welcome to RRA v 0.5.9. 
+INFO  @ Tue, 06 Jun 2023 13:13:52:   1027 control sequences loaded. 
+INFO  @ Tue, 06 Jun 2023 13:13:52:   Skipping gene NA for permutation ... 
+INFO  @ Tue, 06 Jun 2023 13:13:52:   Skipping gene na for permutation ... 
+INFO  @ Tue, 06 Jun 2023 13:13:52:   Reading input file... 
+INFO  @ Tue, 06 Jun 2023 13:13:52:   Summary: 21083 sgRNAs, 18508 genes, 1 lists; skipped sgRNAs:0 
+INFO  @ Tue, 06 Jun 2023 13:13:52:   Computing lo-values for each group... 
+INFO  @ Tue, 06 Jun 2023 13:13:52:   Skipping gene negative_control for permutation ... 
+INFO  @ Tue, 06 Jun 2023 13:13:52:   Warning: sgRNA id not found in the ranked list.  
+INFO  @ Tue, 06 Jun 2023 13:13:52:   Computing false discovery rate... 
+INFO  @ Tue, 06 Jun 2023 13:13:52:   Total # control sgRNAs: 1026 
+INFO  @ Tue, 06 Jun 2023 13:13:52:   Permuting genes with 1 sgRNAs... 
+INFO  @ Tue, 06 Jun 2023 13:13:52:   Permuting genes with 2 sgRNAs... 
+INFO  @ Tue, 06 Jun 2023 13:13:52:   Permuting genes with 3 sgRNAs... 
+INFO  @ Tue, 06 Jun 2023 13:13:52:   Permuting genes with 4 sgRNAs... 
+INFO  @ Tue, 06 Jun 2023 13:13:52:   Permuting genes with 5 sgRNAs... 
+INFO  @ Tue, 06 Jun 2023 13:13:52:   Number of genes under FDR adjustment: 18508 
+INFO  @ Tue, 06 Jun 2023 13:13:52:   Saving to output file... 
+INFO  @ Tue, 06 Jun 2023 13:13:52:   Suppressing the output of gene negative_control since it is negative ontrol genes. 
+INFO  @ Tue, 06 Jun 2023 13:13:52:   RRA completed. 
+INFO  @ Tue, 06 Jun 2023 13:13:52:   Groups deletion complete. 
+INFO  @ Tue, 06 Jun 2023 13:13:52:   Lists deletion complete. 
+INFO  @ Tue, 06 Jun 2023 13:13:52:   ControlSeqPercentile deletion complete. 
+INFO  @ Tue, 06 Jun 2023 13:13:52:    
+INFO  @ Tue, 06 Jun 2023 13:13:52: End command message. 
+INFO  @ Tue, 06 Jun 2023 13:13:52: Running command: RRA -i results/test/rra-High-Low-STMN2.phigh.txt -o results/test/rra-High-Low-STMN2.gene.high.txt -p 0.3493335863017597 --control ../20200513_library_1_2_unbalanced_NegControlList.txt --skip-gene NA --skip-gene na  
+INFO  @ Tue, 06 Jun 2023 13:13:55: Command message: 
+INFO  @ Tue, 06 Jun 2023 13:13:55:   Welcome to RRA v 0.5.9. 
+INFO  @ Tue, 06 Jun 2023 13:13:55:   1027 control sequences loaded. 
+INFO  @ Tue, 06 Jun 2023 13:13:55:   Skipping gene NA for permutation ... 
+INFO  @ Tue, 06 Jun 2023 13:13:55:   Skipping gene na for permutation ... 
+INFO  @ Tue, 06 Jun 2023 13:13:55:   Reading input file... 
+INFO  @ Tue, 06 Jun 2023 13:13:55:   Summary: 21083 sgRNAs, 18508 genes, 1 lists; skipped sgRNAs:0 
+INFO  @ Tue, 06 Jun 2023 13:13:55:   Computing lo-values for each group... 
+INFO  @ Tue, 06 Jun 2023 13:13:55:   Skipping gene negative_control for permutation ... 
+INFO  @ Tue, 06 Jun 2023 13:13:55:   Warning: sgRNA id not found in the ranked list.  
+INFO  @ Tue, 06 Jun 2023 13:13:55:   Computing false discovery rate... 
+INFO  @ Tue, 06 Jun 2023 13:13:55:   Total # control sgRNAs: 1026 
+INFO  @ Tue, 06 Jun 2023 13:13:55:   Permuting genes with 1 sgRNAs... 
+INFO  @ Tue, 06 Jun 2023 13:13:55:   Permuting genes with 2 sgRNAs... 
+INFO  @ Tue, 06 Jun 2023 13:13:55:   Permuting genes with 3 sgRNAs... 
+INFO  @ Tue, 06 Jun 2023 13:13:55:   Permuting genes with 4 sgRNAs... 
+INFO  @ Tue, 06 Jun 2023 13:13:55:   Permuting genes with 5 sgRNAs... 
+INFO  @ Tue, 06 Jun 2023 13:13:55:   Number of genes under FDR adjustment: 18508 
+INFO  @ Tue, 06 Jun 2023 13:13:55:   Saving to output file... 
+INFO  @ Tue, 06 Jun 2023 13:13:55:   Suppressing the output of gene negative_control since it is negative ontrol genes. 
+INFO  @ Tue, 06 Jun 2023 13:13:55:   RRA completed. 
+INFO  @ Tue, 06 Jun 2023 13:13:55:   Groups deletion complete. 
+INFO  @ Tue, 06 Jun 2023 13:13:55:   Lists deletion complete. 
+INFO  @ Tue, 06 Jun 2023 13:13:55:   ControlSeqPercentile deletion complete. 
+INFO  @ Tue, 06 Jun 2023 13:13:55:    
+INFO  @ Tue, 06 Jun 2023 13:13:55: End command message. 
+DEBUG @ Tue, 06 Jun 2023 13:13:55: Sorting the merged items by negative selection... 
+INFO  @ Tue, 06 Jun 2023 13:13:55: Loading top 10 genes from results/test/rra-High-Low-STMN2.gene.low.txt: CCNC,RANBP1,FADS2,C19orf68,COX20,LARP6,GCN1L1,HIC2,ZC3H13,EIF2AK4 
+DEBUG @ Tue, 06 Jun 2023 13:13:55: Column index:3 
+INFO  @ Tue, 06 Jun 2023 13:13:55: Loading top 10 genes from results/test/rra-High-Low-STMN2.gene.high.txt: COG5,C6orf106,SCARA3,INTS8,MAP2K4,NPRL2,KCNJ18,DOCK6,GET4,GTPBP4 
+DEBUG @ Tue, 06 Jun 2023 13:13:55: Column index:9 
+INFO  @ Tue, 06 Jun 2023 13:13:55: Running command: rm results/test/rra-High-Low-STMN2.plow.txt 
+INFO  @ Tue, 06 Jun 2023 13:13:55: Running command: rm results/test/rra-High-Low-STMN2.phigh.txt 
+INFO  @ Tue, 06 Jun 2023 13:13:55: Running command: rm results/test/rra-High-Low-STMN2.gene.low.txt 
+INFO  @ Tue, 06 Jun 2023 13:13:55: Running command: rm results/test/rra-High-Low-STMN2.gene.high.txt 
