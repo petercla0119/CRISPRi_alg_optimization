@@ -17,9 +17,7 @@ editor_options:
     wrap: sentence
 ---
 
-**Objective**: The goal of the notebook is to use edgeR on the STMN2 screen.
-Previous attempts to generate plots from the STMN2 gene file had noise plateaued.
-Reminder that the MAGeCK output data is on the Desktop, whereas scripts are located
+**Objective**: The goal of the notebook is to use edgeR on the STMN2 screen. Previous attempts to generate plots from the STMN2 gene file had noise plateaued. Reminder that the MAGeCK output data is on the Desktop, whereas scripts are located
 
 # STMN2 Screen
 
@@ -38,14 +36,9 @@ library(ggrepel)
 source("~/CRISPRi_alg_optimization/05_scripts/01_data_analysis/00_experiments/clean_preprocess_module.R")
 ```
 
-```{r Import raw data}
+```{r Import Normalized Counts}
 # Import the original raw count data (from JH) from the STMN2 screen from the dual-guide (v8) parser script
-# jh_raw_counts <- read.delim("/Users/claireps/CRISPRi_alg_optimization/JH/01_data/00_processed_data/00_mageck_counts/counts/all.count.txt", sep = "\t", header = TRUE)
-# Import the raw count data from the MAGeCK count function output from the dual-guide (v10) parser script
 raw_counts <- read.delim("/Users/claireps/CRISPRi_alg_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/count/all.count_normalized.txt", sep = "\t", header = TRUE)
-
-# Import the count data from the MAGeCK count function output from the dual-guide (v10) parser script that Kory (NINDS bioinformatics) generated
-
 ```
 
 ## Prepare data for DGEList object for edgeR
@@ -85,8 +78,6 @@ base::summary(clean_raw_counts)
 
 ## Experiments
 
--   `clean_raw_counts` is a df of raw count values without any 0s/NAs
-
 ### Experiment 1: Try analysis after removing all zero and NA values
 
 #### 1.1 Reading in the data
@@ -98,7 +89,6 @@ base::summary(clean_raw_counts)
 count_matrix <- as.matrix(clean_raw_counts[, -1:-2])  # Exclude the two columns with sgRNAs and gene names
 rownames(count_matrix) <- clean_raw_counts[, 2]    # Set the gene names as rownames
 
-count_matrix <- clean_and_process_counts_for_dge(raw_counts)
 ## Include the group information when creating the DGEList object
 # Create a factor variable to define the group/condition
 group <- factor(c("Low", "Low", "Low", "High", "High", "High"))
@@ -320,42 +310,6 @@ cpm(exp1.dge)[o[1:10],]
 The total number of genes with a FDR \< 0.05 is **`r summary(decideTests(lrt))`**.\
 The total number of genes with a logFC \< -1 is **`r sum(lrt$table$logFC < -3)`**.\
 The total number of genes with a logFC \> 1 is **`r sum(lrt$table$logFC > 3)`**.
-
-<!-- #### Plot LFC vs logCPM -->
-
-<!-- ```{r Exp 1.6.3. Plot log-fold change against log-counts per million, with DE genes highlighted} -->
-
-<!-- # Chunk runs, but doesnt show STMN2 or TDP-->
-
-<!-- # Define the gene of interest (its index or identifier) -->
-
-<!-- gene_of_interest <- c("STMN2", "TARBP1") -->
-
-<!-- # TODO: why doesnt TARBP appear but not TARBP1 -->
-
-<!-- ntc <- "negative_control" -->
-
-<!-- # Create a status vector: highlight the gene of interest -->
-
-<!-- status <- rep("Other", nrow(lrt$table)) # Default status for all genes -->
-
-<!-- status[lrt$genes == gene_of_interest] <- "Gene of Interest" -->
-
-<!-- status[lrt$genes == ntc] <- "Non-targeting Control" -->
-
-<!-- # Plot the MD plot with the highlighted gene -->
-
-<!-- plotMD(lrt, status = status, col = c("gray", "red"))  # 'red' will highlight the gene of interest -->
-
-<!-- # Add horizontal lines at log fold changes of -1 and 1 (blue lines) -->
-
-<!-- abline(h = c(-1, 1), col = "blue") -->
-
-<!-- plotMD(lrt) -->
-
-<!-- abline(h=c(-1, 1), col="blue") -->
-
-<!-- ``` -->
 
 #### Volcano plot ----
 
@@ -690,35 +644,20 @@ plot(exp2_lrt_df$logCPM, exp2_lrt_df$logFC)
 ```
 
 <!-- #### Plot LFC vs logCPM -->
-
 <!-- ```{r Exp 1.6.3. Plot log-fold change against log-counts per million, with DE genes highlighted} -->
-
 <!-- # Define the gene of interest (its index or identifier) -->
-
 <!-- gene_of_interest <- c("STMN2", "TARBP") -->
-
 <!-- # TODO: why doesnt TARBP appear but not TARBP1 -->
-
 <!-- ntc <- "negative_control" -->
-
 <!-- # Create a status vector: highlight the gene of interest -->
-
 <!-- status <- rep("Other", nrow(lrt$table)) # Default status for all genes -->
-
 <!-- status[lrt$genes == gene_of_interest] <- "Gene of Interest" -->
-
 <!-- status[lrt$genes == ntc] <- "Non-targeting Control" -->
-
 <!-- # Plot the MD plot with the highlighted gene -->
-
 <!-- plotMD(lrt, status = status, col = c("gray", "red"))  # 'red' will highlight the gene of interest -->
-
 <!-- # Add horizontal lines at log fold changes of -1 and 1 (blue lines) -->
-
 <!-- abline(h = c(-1, 1), col = "blue") -->
-
 <!-- plotMD(lrt) -->
-
 <!-- abline(h=c(-1, 1), col="blue") -->
 
 ##### Run Diagnostics on Volcano Plot
@@ -736,13 +675,125 @@ title(main = "MA Plot of Exp 2")
 sessionInfo()
 ```
 
+<!-- ### Exp 3. Try analysis with aggregating treatment/control groups before making dge object -->
 
+<!-- #### Reading in the data -->
 
+<!-- ```{r} -->
+<!-- exp3.mat <- clean_and_process_counts_for_dge(clean_raw_counts) -->
 
+<!-- # Group assignment (two conditions: control and treatment) -->
+<!-- group <- factor(c("Low", "Low", "Low", "High", "High", "High")) -->
 
+<!-- # Combine technical replicates -->
+<!-- # Example: Rep1_Tech1 + Rep1_Tech2, Rep2_Tech1 + Rep2_Tech2 -->
+<!-- combined_counts <- cbind( -->
+<!--   Low = rowSums(exp3.mat[, c("Low_rep1", "Low_rep2", "Low_rep3")]), -->
+<!--   High = rowSums(exp3.mat[, c("High_rep1", "High_rep2","High_rep3")]) -->
+<!-- ) -->
 
+<!-- # Adjust group factor after combining technical replicates -->
+<!-- group_combined <- factor(c("Low", "High")) -->
+
+<!-- # Create DGEList object with combined counts -->
+<!-- dge <- DGEList(counts=combined_counts, group=group_combined) -->
+
+<!-- # Normalization (TMM) -->
+<!-- dge <- calcNormFactors(dge) -->
+
+<!-- # Estimate dispersion (biological replicates) -->
+<!-- dge <- estimateDisp(dge) -->
+
+<!-- # Perform exact test for differential expression -->
+<!-- et <- exactTest(dge) -->
+
+<!-- # View the top differentially expressed genes -->
+<!-- topTags(et) -->
+
+<!-- group <- factor(c("Low", "Low", "Low", "High", "High", "High")) -->
+<!-- group <- relevel(group, ref = "Low") # Set "Low" as the reference group -->
+
+<!-- # Create dge object -->
+<!-- dge <- DGEList(counts = count_matrix, group = group) -->
+
+<!-- # Create a new col to label replicate number and sample info  -->
+<!-- dge$samples$id <- c(1,2,3,4,5,6) # 1=low1,2=low2,3=low3,4=high1,5=high2,6=high3 -->
+<!-- dge$samples$replicate = factor(c("rep1", "rep2", "rep3", "rep1", "rep2", "rep3")) # high 1, low 1, high 2, low 2, high 3, low 3 -->
+<!-- dge$samples$replicate <- relevel(dge$samples$replicate, ref = "rep3") -->
+
+<!-- # Create new list to label sgRNA ID -->
+<!-- dge$genes <- data.frame(gene = clean_raw_counts[, 2]) -->
+<!-- # Copy the count data  -->
+<!-- dge$genes <- as.data.frame(dge$genes) -->
+<!-- dge$genes$sgrna_id <- as.matrix(clean_raw_counts[,1]) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- rank_test <- function(df) { -->
+
+<!--   # Calculate the geometric mean for the high and the low samples -->
+<!--   # geom_mean <- function(x) { -->
+<!--   # exp(mean(log(x[x > 0]), na.rm = TRUE)) -->
+
+<!--   # Split the dataframe into negative controls and targeting genes -->
+<!--   df_ntc <- df %>% filter(grepl('negative_control', Gene)) -->
+<!--   df_targeting <- df %>% filter(!grepl('negative_control', Gene)) -->
+
+<!-- #   # Extract relevant columns from the negative control dataframe -->
+<!--   ntc_sgRNA_p <- df_ntc$PValue -->
+<!--   ntc_sgRNA_p_lfc <- data.frame(PValue = df_ntc$PValue, LFC = df_ntc$logFC) -->
+<!-- # -->
+<!-- #   # Get unique genes in the targeting dataframe -->
+<!--   genes <- unique(df_targeting$gene) -->
+<!--   num_of_genes <- length(genes) -->
+<!-- # -->
+<!-- #   # Initialize an empty list to store LFC and p-values for each gene -->
+<!--   gene_lfc_p <- list() -->
+<!-- # -->
+<!-- #   # Loop through each gene and perform calculations -->
+<!--   for (gene in genes) { -->
+<!--     df_gene <- df_targeting %>% filter(Gene == gene) %>% arrange(PValue) -->
+
+<!-- #     # Calculate the mean LFC of up to the top 3 rows -->
+<!-- #     lfc <- mean(df_gene$LFC[1:min(3, nrow(df_gene))]) -->
+<!-- # -->
+<!-- #     # Perform the Wilcoxon rank-sum test -->
+<!-- #     pvalue <- wilcox.test(df_gene$p.twosided[1:min(3, nrow(df_gene))], ntc_sgRNA_p, alternative = "two.sided")$p.value -->
+<!-- # -->
+<!-- #     # Store the results in the list -->
+<!-- #     gene_lfc_p[[gene]] <- list(lfc = lfc, pvalue = pvalue) -->
+<!-- #   } -->
+<!-- # -->
+<!-- #   # Set the seed for reproducibility -->
+<!--   set.seed(10) -->
+<!-- #   # Multiple Testing Correction - sample 5 NTCs and calculate KD phenotype scores and pvalues -->
+<!--   # Perform randomization for the negative controls -->
+<!--   for (j in seq_len(num_of_genes)) { -->
+<!--     # Shuffle the ntc_sgRNA_p_lfc list -->
+<!--     ntc_sgRNA_p_lfc <- ntc_sgRNA_p_lfc[sample(nrow(ntc_sgRNA_p_lfc)), ] -->
+
+<!--     # Select the first 5 elements after shuffling -->
+<!--     ntc_selected <- ntc_sgRNA_p_lfc[1:5, ] -->
+
+<!--     # Extract the p-values and calculate the LFC -->
+<!--     ntc_selected_p <- ntc_selected$PValue -->
+<!--     ntc_lfc <- mean(ntc_selected$logFC[order(ntc_selected_p)][1:min(3, length(ntc_selected_p))]) -->
+
+<!--     # Perform the Wilcoxon rank-sum test -->
+<!--     ntc_pvalue <- wilcox.test(ntc_selected_p, ntc_sgRNA_p, alternative = "two.sided")$p.value -->
+<!--     # Store the results in the list -->
+<!--     gene_lfc_p[[paste0('negative_control_', j)]] <- list(lfc = ntc_lfc, pvalue = ntc_pvalue) -->
+<!--   } -->
+<!--   return(gene_lfc_p) -->
+<!-- } -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- # TODO: pull out NTC and normalize both high and low groups to them, then re-run stats -->
+<!-- ``` -->
 
 # Resume here
+
 <!-- ```{r Exp 1.4a. Assess consistency between replicate samples} -->
 <!-- # Make an MDS plot to visualise relationships between replicate samples Set up infection # -->
 <!-- # colors -->
@@ -753,12 +804,9 @@ sessionInfo()
 <!-- # legend("topleft", legend = c("Low", "High"), col = c(1, 2), pch = 15) -->
 <!-- # plotMDS(x4, col = cols2, main = "Large sgRNA-seq screen: MDS Plot") -->
 <!-- # legend("topleft", legend = c("Rep 1", "Rep 2", "Rep 3"), col = c(1, 2), pch = 15) -->
-
 <!-- # ## Make an MDS plot to visualise relationships between replicate samples -->
 <!-- # par(mfrow = c(1, 3)) -->
 <!-- # plotMDS(dge, main = "Larger screen: MDS Plot") -->
-
-
 <!-- # Begin differential representation analysis We will use GLMs in edgeR in this case since the experimental design is a time course with changes expected over time i.e. model is y -->
 <!-- # = intercept + slope*time Set up design matrix for GLM -->
 <!-- group <- as.factor(dge$samples$group) -->
@@ -766,24 +814,18 @@ sessionInfo()
 <!-- design.mat <- model.matrix(~group + replicate) -->
 <!-- design.mat[1:6,] -->
 <!-- # des = model.matrix(~dge$samples$group) # Uncomment to evaluate variation between FACS groups -->
-
 <!-- # Estimate dispersions ---- -->
 <!-- # Estimate common dispersion -->
 <!-- xglm = estimateDisp(dge, design.mat) -->
 <!-- sqrt(xglm$common.disp) -->
-
 <!-- # Plot BCVs versus abundance ---- -->
 <!-- plotBCV(xglm, main = "STMN2: BCV Plot") -->
-
 <!-- # Fit negative binomial GLM -->
 <!-- fit = glmFit(xglm, design.mat) -->
-
 <!-- # Carry out Likelihood ratio test -->
 <!-- lrt = glmLRT(fit, coef = 2) -->
 <!-- # Show top ranked sgRNAs from the LRT -->
 <!-- topTags(lrt) -->
-
-
 <!-- # Select sgRNAs with FDR < 0.0001 and logFC <= -1 to highlight on plot -->
 <!-- thresh = 1e-04 -->
 <!-- lfc = 1 -->
@@ -792,12 +834,10 @@ sessionInfo()
 <!-- # top10_neg_ids = top10_neg$table[top10_neg$table$FDR < thresh & top10_neg$table$logFC >= lfc, 1] -->
 <!-- top10_pos_ids = top10_pos$table[top10_pos$table$FDR < thresh & top10_pos$table$logFC >= lfc, 1] -->
 <!-- # TODO: Figure out how to get negative lfc changes -->
-
 <!-- # Plot logFC versus logCPM -->
 <!-- plotSmear(lrt, de.tags = top10_pos_ids, pch = 20, cex = 0.6, main = "STMN2: logFC vs logCPM") -->
 <!-- abline(h = c(-1, 0, 1), col = c("dodgerblue", "yellow", "dodgerblue"), lty = 2) -->
 <!-- ``` -->
-
 <!-- ```{r Exp 1.4b Try quasi-likelihood model} -->
 <!-- # Fit quasi-likelihood GLM -->
 <!-- QL_fit <- glmQLFit(dge, des) -->
@@ -805,28 +845,20 @@ sessionInfo()
 <!-- qlf <- glmQLFTest(QL_fit, coef = 2) -->
 <!-- # Show top ranked sgRNAs -->
 <!-- topTags(qlf) -->
-
-
 <!-- # Select hairpins with FDR < 0.05 to highlight on plot -->
 <!-- thresh = 0.005 -->
 <!-- top3 = topTags(lrt, n = Inf) -->
 <!-- top3ids = top3$table[top3$table$FDR < thresh, 1] -->
-
 <!-- # Plot Slope versus logCPM -->
 <!-- plotSmear(lrt, de.tags = top3ids, pch = 20, cex = 0.6, main = "Larger screen: Slope vs logCPM") -->
 <!-- abline(h = c(-1, 0, 1), col = c("dodgerblue", "yellow", "dodgerblue"), lty = 2) -->
 <!-- ``` -->
-
-
 <!-- ```{r Exp 1.5. Summarize gene-by-gene ranking rather than sgRNA-specific ranking} -->
-
 <!-- ``` -->
-
-
 <!-- ```{r Exp 1.6. Create Volcano Plot} -->
 <!-- p <- ggplot() + -->
-<!--   geom_jitter(data = top10_pos, aes(x = sub_ntc_med_epsilon, y = -log10(pvalue), color = category), size = 1.5, alpha = 0.5) + -->
-<!--   geom_jitter(data = df_hits %>% dplyr::filter(gene == "STMN"), aes(x = sub_ntc_med_epsilon, y = -log10(pvalue)), size = 1.5, alpha = 0.7) + -->
+<!--   geom_jitter(data = top10_pos, aes(x = sub_ntc_med_epsilon, y = -log10(pvalue), color = category), size = 1.5, alpha = 0.5) + ->
+<!--   geom_jitter(data = df_hits %>% dplyr::filter(gene == "STMN"), aes(x = sub_ntc_med_epsilon, y = -log10(pvalue)), size = 1.5, lpha = 0.7) + -->
 <!--   # Add labels for outliers using geom_label_repel -->
 <!--   # geom_label_repel(data = outliers, aes(x = sub_ntc_med_epsilon, y = -log10(pvalue), label = gene),  -->
 <!--   #                  size = 3, color = "black", box.padding = 0.2, point.padding = 0.2,  -->
@@ -844,45 +876,32 @@ sessionInfo()
 <!-- # Add the FDR threshold lines -->
 <!-- x <- seq(0.01, 10, by = 0.01) -->
 <!-- y <- sapply(x, function(i) thres / i) -->
-
 <!-- # Adding FDR lines -->
 <!-- p <- p + geom_line(aes(x = x, y = y), linetype = "dashed", color = "black") + -->
 <!--   geom_line(aes(x = -x, y = y), linetype = "dashed", color = "black") + -->
 <!--   annotate("text", x = max(x), y = y[1], label = "FDR = 0.05", hjust = 1, size = 5) -->
-
 <!-- # Define limits -->
 <!-- lim <- max(abs(min(df$epsilon) - 1), (max(df$epsilon) + 2)) -->
 <!-- p <- p + xlim(-lim, lim) + ylim(0, -log10(min(df$pvalue)) + 0.5) -->
 <!-- print(p) -->
 <!-- ``` -->
-
-
-
-
 <!-- ### Experiment 2 - set manual filter to only retain sgRNAs with at least 0.5 counts per million in at least 3 samples and plot the overall number of reads per sample and hairpin in a barplot. Counts per million are used as these values are standardised for systematic differences in the amount of sequencing between different samples, which can be subtantial -->
 <!-- ```{r} -->
-
 <!-- # Filter hairpins with low counts -->
 <!-- sel = rowSums(cpm(dge$counts) > 0.5) >= 3 -->
 <!-- dge_selected = dge[sel, ] -->
-
 <!-- # Plot number of hairpins that could be matched per sample -->
 <!-- par(mfrow = c(2, 1)) -->
-<!-- barplot(colSums(dge_selected$counts), las = 2, main = "Counts per index", cex.names = 0.5, cex.axis = 0.8, ylim = c(0, 2e+07)) -->
+<!-- barplot(colSums(dge_selected$counts), las = 2, main = "Counts per index", cex.names = 0.5, cex.axis = 0.8, ylim = c(0, 2e+07)) ->
 <!-- # Select hairpins from plates run in this screen -->
 <!-- sample_info = dge_selected$samples$group -->
-
 <!-- selhp = sample_info == "High" | sample_info == "Low" -->
 <!-- # Plot per hairpin totals across all samples -->
 <!-- barplot(rowSums(dge_selected$counts[selhp, ]), las = 2, main = "Counts per hairpin", cex.names = 0.5, -->
 <!-- cex.axis = 0.8, ylim = c(0, 1500000)) -->
 <!-- ``` -->
-
-
 <!-- ```{r Scratch space} -->
-
 <!-- # Was working through the code below, but thought that another tutorrial would be more helpful since it was on large screens -->
-
 <!-- # Evaluate Variation Between Replicates - Evaluate consistency between replicate samples -------- -->
 <!-- # Create a design matrix for GLM analysis -->
 <!-- # Estimate and plot sgRNA variation -->
@@ -895,79 +914,51 @@ sessionInfo()
 <!-- # # there are more than 2 groups Set up design matrix for GLM -->
 <!-- # des = model.matrix(~dge$samples$group) -->
 <!-- # des -->
-
 <!-- # Subset sgRNAs and samples relevant to the "low" group -->
-
 <!-- ``` -->
-
 <!-- ```{r want to assert that the difference between high/low groups is similar is much the same regardless of color} -->
-
 <!-- ``` -->
-
-
 <!-- # TODO Try running edgeR on cat parsed files (combine recombinants with hits) -->
 <!-- # TODO Try running edgeR on parsed recombinant files -->
-<!-- # TODO: Beyond edgeR - group NTC guides as neg ctrls, thus the sgRNA totals across all samples for NTC should be significantly higher than other bars -->
+<!-- # TODO: Beyond edgeR - group NTC guides as neg ctrls, thus the sgRNA totals across all samples for NTC should be significantly igher than other bars -->
 <!-- # TODO: Try classic approach from edgeR - makes pairwise comparisons between groups -->
 <!-- ```{r} -->
 <!-- # Try the exact block above but set the sgRNA column to the gene for unique identificaiton -->
 <!-- ``` -->
-
 <!-- ```{r} -->
 <!-- # Inspect current data type -->
 <!-- class(raw_counts) -->
 <!-- str(raw_counts) -->
-
-
 <!-- # Assuming the first column contains gene names -->
 <!-- count_matrix <- as.matrix(raw_counts[, -1:-2])  # Exclude the first column if it has gene names -->
 <!-- rownames(count_matrix) <- raw_counts[, 1]    # Set the gene names as rownames -->
-
 <!-- ``` -->
-
 <!-- ## Read alignment/processing -->
-
 <!-- ## Count loading and annotation -->
-
 <!-- ## Filtering and normalization -->
-
-<!-- We next filter out sgRNAs and samples with low numbers of reads. Need a CPM greater than 5 in 15 or more samples to keep sgRNAs, and at least 100,000 reads to keep a given sample. -->
-
+<!-- We next filter out sgRNAs and samples with low numbers of reads. Need a CPM greater than 5 in 15 or more samples to keep sgRNAs, nd at least 100,000 reads to keep a given sample. -->
 <!-- ### Data exploration -->
-
 <!-- ```{r volcano plot of original sgRNA file, echo=FALSE} -->
-
 <!-- ``` -->
-
 <!-- ### Design matrix -->
-
 <!-- ### Dispersion estimation -->
-
 <!-- ```{r} -->
 <!-- #| echo: false -->
-
 <!-- # Try using edgeR -->
-
 <!-- library(edgeR) -->
 <!-- library(dplyr) -->
-
 <!-- # load data -->
-<!-- raw_counts <- read.delim("/Users/Claire/Library/CloudStorage/Box-Box/MSTP Research Rotations/Summer_2024_Might_Ward_Lab/CRISPRi_alg_optimization/00_references_and_code/files_from_others/00_JH/01_data/00_processed_data/00_mageck_counts/counts/all.count.txt", sep = "\t", header = TRUE) -->
-
-
+<!-- raw_counts <- read.delim("/Users/Claire/Library/CloudStorage/Box-Box/MSTP Research otations/Summer_2024_Might_Ward_Lab/CRISPRi_alg_optimization/00_references_and_code/files_from_others/00_JH/01_data/00_processed_data00_mageck_counts/counts/all.count.txt", sep = "\t", header = TRUE) -->
 <!-- # TODO: handle duplicate gene names -->
 <!-- unique_genes_df <- raw_counts %>% -->
 <!-- group_by(Gene) %>% -->
 <!--   filter(n() == 1) %>% -->
 <!--   ungroup() -->
-
 <!-- rownames(unique_genes_df) <- as.character(unique_genes_df$Gene) -->
 <!-- # unique_genes_df$Gene<-NULL -->
 <!-- mygroups <- c("Low1","Low1","Low1","High1","High1","High1") -->
-
 <!-- # TODO: remove zeros from sgRNA column -->
 <!-- # TODO: remove zeros from Gene column -->
-
 <!-- remove_zeros <- function(df) { -->
 <!--   # Use rowSums to check for zeros or NAs in each row and keep rows without them -->
 <!--   df_clean <- df[rowSums(df == 0) == 0, ] -->
@@ -986,31 +977,23 @@ sessionInfo()
 <!-- df_no_zero <- remove_zeros(rawdata) -->
 <!-- df_no_NA <- remove_NA(rawdata) -->
 <!-- df_clean <- remove_zeros_and_NA(rawdata) -->
-
 <!-- # View the total count -->
 <!-- total_zero_count -->
 <!-- library(edgeR) -->
 <!-- y <- DGEList(counts=df_clean[,3:8], genes=df_clean[,1:2]) -->
 <!-- ``` -->
-
 <!-- # Try from the edgeR User Documentation File -->
-
 <!-- ## Import and Sequence Processing -->
-
 <!-- ```{r seq processing, echo=FALSE} -->
 <!-- library(edgeR) -->
 <!-- library(dplyr) -->
-<!-- sgrna_counts <- read.delim("/Users/claireps/Desktop/dual_guide_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/count/all.count.txt", sep = "\t") -->
-
+<!-- sgrna_counts <- read.delim("/Users/claireps/Desktop/dual_guide_optimization/01_sorting-based_screens/stmn2/analysis_method/magec/initial_mageck_09122024/stmn2_unpaired/results/count/all.count.txt", sep = "\t") -->
 <!-- sgrna_counts[,3:8] <- lapply(sgrna_counts[,3:8], as.numeric) -->
-
 <!-- # Specify the columns you want to convert -->
 <!-- cols_to_convert <- c("Low_rep1", "Low_rep2", "Low_rep3", "High_rep1", -->
 <!-- "High_rep2", "High_rep3") -->
-
 <!-- # Convert specified columns to numeric -->
 <!-- rawdata[cols_to_convert] <- lapply(rawdata[cols_to_convert], as.numeric) -->
-
 <!-- # Loop through each numeric column and create a histogram -->
 <!-- for (col in names(df)) { -->
 <!--   if (is.numeric(df[[col]])) { -->
@@ -1018,33 +1001,19 @@ sessionInfo()
 <!--   } -->
 <!-- } -->
 <!-- ``` -->
-
 <!-- ### Get Summary Statistics from the Counts File -->
-
 <!-- ```{r} -->
-
 <!-- summary.data.frame(sgrna_counts) -->
 <!-- ``` -->
-
 <!-- ```{r} -->
 <!-- counts.matrix <- lapply(sgrna_counts[,3:8], as.numeric) -->
 <!-- output <- matrix(unlist(counts.matrix), ncol = 6, byrow = TRUE) -->
-
-
 <!-- genes <- sgrna_counts %>% -->
 <!--   dplyr::select(sgRNA, Gene) -->
 <!-- genes <- base::as.data.frame(genes) -->
 <!-- ``` -->
-
 <!-- The `processAmplicons` function requires a barcode and a hairpin file. Because I don't know what a barcode file is, i will bypass this step and use the count table output from the MAGeCK algorithm. -->
-
 <!-- ## Count loading and annotation -->
-
 <!-- ```{r, echo=FALSE} -->
 <!-- DGEList(counts = output, genes = genes) -->
-
 <!-- ``` -->
-
-
-
-
