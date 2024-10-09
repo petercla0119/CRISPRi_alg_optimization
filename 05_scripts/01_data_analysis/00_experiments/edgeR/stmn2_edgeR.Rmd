@@ -41,41 +41,6 @@ source("~/CRISPRi_alg_optimization/05_scripts/01_data_analysis/00_experiments/cl
 raw_counts <- read.delim("/Users/claireps/CRISPRi_alg_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/count/all.count_normalized.txt", sep = "\t", header = TRUE)
 ```
 
-## Prepare data for DGEList object for edgeR
-
-```{r Clean and explore the raw read count data, echo=FALSE}
-# Convert counts columns to numerics
-raw_counts[ , 3:ncol(raw_counts)] <- base::lapply(raw_counts[ , 3:ncol(raw_counts)], as.numeric)
-
-base::summary(raw_counts)
-# NOTE: Why are there so many NA values in High_rep3? Like 78 NAs versus 16 in other samples. - higher events per second in high/low rep 3 - FACS device has harder time collecting high fluorescence events
-
-# There are zero and NA values, but how many?
-zero_count_per_column <- sapply(raw_counts, function(x) sum(x == 0, na.rm = TRUE))
-print(zero_count_per_column)
-
-# TODO: Why are there 0s in the sgRNA column
-raw_counts %>% 
-  dplyr::filter(sgRNA==0)
-# All rows are 0 or have NA so okay to remove the rows with an sgRNA == 0
-```
-
-```{r Remove all zeros and NA values, echo=FALSE}
-# Load Counts ----
-## Remove NA from raw_counts df
-no_na_raw_counts <- remove_na(raw_counts)
-
-## Remove zeros in the sgRNA or Gene column and recode 0s in other columns
-clean_raw_counts <- no_na_raw_counts %>% 
-  dplyr::filter(!sgRNA==0) %>% 
-  dplyr::filter(!Gene==0) %>% 
-  dplyr::mutate_all(~replace(., . == 0, 0.0001))
-
-## Verify that all 0s and NAs were removed from the df
-sapply(clean_raw_counts, function(x) sum(x == 0, na.rm = TRUE))
-base::summary(clean_raw_counts)
-```
-
 ## Experiments
 
 ### Experiment 1: Try analysis after removing all zero and NA values
