@@ -108,48 +108,49 @@ calculate_avg_sd_cv_sgrna_summary <- function(df) {
 }
 
 
-# Load necessary libraries
-library(dplyr)
 
 # Function to clean and process raw counts data
 clean_and_process_counts_for_dge <- function(raw_counts, sgRNA_col = "sgRNA", gene_col = "Gene", exclude_cols = c("sgRNA", "Gene")) {
   
-  # Convert counts columns to numeric (assumes columns after 2nd column are counts)
-  raw_counts[ , 3:ncol(raw_counts)] <- base::lapply(raw_counts[ , 3:ncol(raw_counts)], as.numeric)
+  # Step 1: Identify numeric columns only (excluding sgRNA and Gene)
+  numeric_cols <- setdiff(names(raw_counts)[3:ncol(raw_counts)], exclude_cols)
   
-  # Print summary of the raw counts data
-  base::summary(raw_counts)
+  # Step 2: Convert only numeric columns to numeric (to avoid coercion of non-numeric columns)
+  raw_counts[numeric_cols] <- lapply(raw_counts[numeric_cols], as.numeric)
   
-  # Count the number of zeros in each column
-  zero_count_per_column <- sapply(raw_counts, function(x) sum(x == 0, na.rm = TRUE))
+  # Step 3: Remove NAs
+  no_na_raw_counts <- raw_counts %>% drop_na()
+  
+  # Step 4: Count the number of zeros in each numeric column
+  zero_count_per_column <- sapply(no_na_raw_counts[numeric_cols], function(x) sum(x == 0, na.rm = TRUE))
+  
+  # Print statement showing the total number of zeros per column
+  message(glue("There are {sum(zero_count_per_column)} zeros in the dataset across numeric columns:"))
   print(zero_count_per_column)
   
-  # Check for rows where sgRNA == 0 (potential issue)
-  problem_rows <- raw_counts %>% dplyr::filter(.data[[sgRNA_col]] == 0)
-  print(problem_rows)
-  
-  # Remove rows where sgRNA or Gene column has zeros, replace zeros in other columns with a small value (e.g., 0.0001)
-  clean_raw_counts <- raw_counts %>%
+  # Step 5: Remove rows where sgRNA or Gene column has zeros, and replace zeros in other columns with a small value
+  clean_raw_counts <- no_na_raw_counts %>%
     dplyr::filter(.data[[sgRNA_col]] != 0) %>%
     dplyr::filter(.data[[gene_col]] != 0) %>%
     dplyr::mutate(across(-all_of(exclude_cols), ~replace(., . == 0, 0.0001)))
   
-  # Verify that all 0s and NAs were removed
-  remaining_zeros <- sapply(clean_raw_counts, function(x) sum(x == 0, na.rm = TRUE))
+  # Step 6: Verify that all 0s and NAs were removed
+  remaining_zeros <- sapply(clean_raw_counts[numeric_cols], function(x) sum(x == 0, na.rm = TRUE))
+  message("Remaining zeros in each column after cleaning:")
   print(remaining_zeros)
   
-  # Print summary of cleaned data
-  base::summary(clean_raw_counts)
-  
-  # Convert DataFrame to Matrix (excluding sgRNA and Gene columns)
+  # Step 7: Convert DataFrame to Matrix (excluding sgRNA and Gene columns)
   count_matrix <- as.matrix(clean_raw_counts[, -match(exclude_cols, names(clean_raw_counts))])
   
   # Set the rownames of the matrix to the Gene column
   rownames(count_matrix) <- clean_raw_counts[[gene_col]]
   
   # Return the clean counts matrix
-  return(count_matrix = count_matrix)
+  return(count_matrix)
 }
+
+
+
 
 # Example usage:
 # Assuming 'raw_counts' is your DataFrame with columns including sgRNA and Gene
