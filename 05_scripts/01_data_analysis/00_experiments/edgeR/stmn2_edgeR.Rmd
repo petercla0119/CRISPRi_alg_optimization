@@ -33,12 +33,21 @@ library(dplyr)
 library(tidyverse)
 library(MASS)
 library(ggrepel)
+library(yaml)
 source("~/CRISPRi_alg_optimization/05_scripts/01_data_analysis/00_experiments/clean_preprocess_module.R")
+
 ```
 
 ```{r Import Normalized Counts}
+config <- yaml.load_file("~/CRISPRi_alg_optimization/stmn2_config.yml")
+
+raw_dat_path <- config$data$raw_count_data
+norm_dat_path <- config$data$norm_count_data
+
 # Import the original raw count data (from JH) from the STMN2 screen from the dual-guide (v8) parser script
-raw_counts <- read.delim("/Users/claireps/CRISPRi_alg_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/count/all.count_normalized.txt", sep = "\t", header = TRUE)
+raw_counts <- read.delim(raw_dat_path, sep = "\t", header = TRUE)
+norm_counts <- read.delim(norm_dat_path, sep = "\t", header = TRUE)
+
 ```
 
 ## Experiments
@@ -49,10 +58,6 @@ raw_counts <- read.delim("/Users/claireps/CRISPRi_alg_optimization/01_sorting-ba
 
 ```{r Exp 1.1 Create DGEList Object}
 # Exp 1.1 Create DGEList object for edgeR ----
-## Convert the DataFrame to a Matrix
-## Assuming df is your dataframe and the first column contains gene names
-count_matrix <- as.matrix(clean_raw_counts[, -1:-2])  # Exclude the two columns with sgRNAs and gene names
-rownames(count_matrix) <- clean_raw_counts[, 2]    # Set the gene names as rownames
 
 ## Include the group information when creating the DGEList object
 # Create a factor variable to define the group/condition
