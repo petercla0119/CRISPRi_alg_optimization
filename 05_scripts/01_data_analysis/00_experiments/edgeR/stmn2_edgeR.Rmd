@@ -34,20 +34,20 @@ library(tidyverse)
 library(MASS)
 library(ggrepel)
 library(yaml)
+library(glue)
 source("~/CRISPRi_alg_optimization/05_scripts/01_data_analysis/00_experiments/clean_preprocess_module.R")
 
 ```
 
 ```{r Import Normalized Counts}
-config <- yaml.load_file("~/CRISPRi_alg_optimization/stmn2_config.yml")
+file_config <- yaml.load_file("~/CRISPRi_alg_optimization/stmn2_config.yml")
 
-raw_dat_path <- config$data$raw_count_data
-norm_dat_path <- config$data$norm_count_data
+raw_dat_path <- file_config$data$raw_count_data
+norm_dat_path <- file_config$data$norm_count_data
 
 # Import the original raw count data (from JH) from the STMN2 screen from the dual-guide (v8) parser script
 raw_counts <- read.delim(raw_dat_path, sep = "\t", header = TRUE)
 norm_counts <- read.delim(norm_dat_path, sep = "\t", header = TRUE)
-
 ```
 
 ## Experiments
@@ -57,27 +57,16 @@ norm_counts <- read.delim(norm_dat_path, sep = "\t", header = TRUE)
 #### 1.1 Reading in the data
 
 ```{r Exp 1.1 Create DGEList Object}
-# Exp 1.1 Create DGEList object for edgeR ----
-
+# Exp 1.1 Create DGEList object for edgeR ---- 
 ## Include the group information when creating the DGEList object
 # Create a factor variable to define the group/condition
 group <- factor(c("Low", "Low", "Low", "High", "High", "High"))
 group <- relevel(group, ref = "Low") # Set "Low" as the reference group
 
-# Create dge object
-dge <- DGEList(counts = count_matrix, group = group)
-
-# Create a new col to label replicate number and sample info 
-dge$samples$id <- c(1,2,3,4,5,6) # 1=low1,2=low2,3=low3,4=high1,5=high2,6=high3
-dge$samples$replicate = c(1,2,3,1,2,3) # high 1, low 1, high 2, low 2, high 3, low 3
-
-# Create new list to label sgRNA ID
-dge$genes <- data.frame(gene = clean_raw_counts[, 2])
-# Copy the count data 
-dge$genes <- as.data.frame(dge$genes)
-dge$genes$sgrna_id <- as.matrix(clean_raw_counts[,1])
-
-print(dge)
+exp1_count_matrix <- clean_and_process_counts_for_dge(raw_counts)
+exp1_clean_raw_counts <- exp1_count_matrix$clean_raw_counts
+exp1_dge <- exp1_count_matrix$dge
+exp1_count_matrix <- exp1_count_matrix$count_matrix
 ```
 
 #### 1.2. Filtering and Normalization
@@ -86,25 +75,24 @@ print(dge)
 # Exp 1.2.1 Filtering 1 ----
 # Genes are only retained if they are expressed at a minimum level
 # The group factor or the experimental design matrix can also be given directly to the filterBy Expr function
-# TODO: what does a "minimum level" mean
-filterbyexpr_keep <- filterByExpr(dge, group = group)
+filterbyexpr_keep <- filterByExpr(exp1_dge, group = group)
 table(filterbyexpr_keep)
-dge_filterbyexpr <- dge[filterbyexpr_keep, ,keep.lib.sizes=FALSE]
-dge_filterbyexpr <- dge # Keep a copy of counts filtered by expression
-dge_filterbyexpr_ct <- nrow(dge$counts)
+exp1_dge_filterbyexpr <- exp1_dge[filterbyexpr_keep, ,keep.lib.sizes=FALSE]
+exp1_dge_filterbyexpr <- exp1_dge # Keep a copy of counts filtered by expression
+exp1_dge_filterbyexpr_ct <- nrow(exp1_dge$counts)
 
 # Exp 1.2.2. Filtering 2 ----
 # Filter out sgRNAs with at least 0.5 counts per million in at least 3 samples. Used CPM since values are standardized for systematic differences in the amount of sequencing between samples cpm function accounts for library differences
-filtermanual_keep <- rowSums(cpm(dge$counts)>50)>=2
+filtermanual_keep <- rowSums(cpm(exp1_dge$counts)>20)>=2
 table(filtermanual_keep)
-dge <- dge[filtermanual_keep, ,keep.lib.sizes=FALSE] # This is the dge obj we will move forward with for subsequent analyses
-dge_filtermanual <- dge # Keep a copy of the counts filtered by manual threshold values
-dge_filtermanual_ct <- nrow(dge$counts)
+exp1_dge <- exp1_dge[filtermanual_keep, ,keep.lib.sizes=FALSE] # This is the exp1_dge obj we will move forward with for subsequent analyses
+exp1_dge_filtermanual <- exp1_dge # Keep a copy of the counts filtered by manual threshold values
+exp1_dge_filtermanual_ct <- nrow(exp1_dge$counts)
 
 # Compare the number of genes retained after manual vs default filtering
-print(dge_filterbyexpr_ct - dge_filtermanual_ct) # dge_filterbyexpr is more permissive than dge_filtermanual
-length(base::setdiff(row.names(dge_filterbyexpr$counts), row.names(dge_filtermanual$counts)))
-dropped_genes <- base::setdiff(row.names(dge_filterbyexpr$counts), row.names(dge_filtermanual$counts))
+print(exp1_dge_filterbyexpr_ct - exp1_dge_filtermanual_ct) # exp1_dge_filterbyexpr is more permissive than exp1_dge_filtermanual
+length(base::setdiff(row.names(exp1_dge_filterbyexpr$counts), row.names(exp1_dge_filtermanual$counts)))
+dropped_genes <- base::setdiff(row.names(exp1_dge_filterbyexpr$counts), row.names(exp1_dge_filtermanual$counts))
 
 # Ensure STMN2 and TDP genes were not dropped
 "STMN2" %in% dropped_genes
@@ -116,15 +104,15 @@ dropped_genes <- base::setdiff(row.names(dge_filterbyexpr$counts), row.names(dge
 ```{r Exp 1.2.3 Plot Filtered sgRNAs}
 # Exp 1.2a. Plot Filtered sgRNAs ----
 # Set up drug treatment colors
-cols <- as.numeric(dge$samples$group) + 2
+cols <- as.numeric(exp1_dge$samples$group) + 2
 
 # Plot number of hairpins that could be matched per sample and total for each hairpin across all samples
-barplot(colSums(dge$counts), 
+barplot(colSums(exp1_dge$counts), 
         las=1, # Make x-axis text label horizontal
-        main="Counts per index", sub = "With CPM > 50 in at least 2 samples",
+        main="Counts per index", sub = "With CPM > 20 in at least 2 samples",
         col=cols, cedge.names=0.5, cedge.adgeis=0.8)
-barplot(rowSums(dge$counts), las = 2, 
-        main = "Counts per sgRNA", sub = "With CPM > 50 in at least 2 samples",
+barplot(rowSums(exp1_dge$counts), las = 2, 
+        main = "Counts per sgRNA", sub = "With CPM > 20 in at least 2 samples",
         cex.names = 0.5, cex.axis = 0.8)
 ```
 
