@@ -125,12 +125,6 @@ genes_removed <- data.frame(Gene = rownames(keep[which(keep == FALSE), , drop = 
 # For genes_keep
 genes_keep <- data.frame(Gene = rownames(keep[which(keep == TRUE), , drop = FALSE]), 
                          Value = keep[keep == TRUE])
-    # Does the same as the above lines but with cleaner code ----
-    # genes_removed <- as.matrix(keep[keep==FALSE])
-    # genes_removed <- data.frame(Gene = rownames(genes_removed), Value = genes_removed[,1])
-    # 
-    # genes_keep <- as.matrix(keep[keep==TRUE])
-    # genes_keep <- data.frame(Gene = rownames(genes_keep), Value = genes_keep[,1])
 # Verify that TDP and STMN2 are retained
 genes_keep[genes_keep$Gene %in% c("TARBP1", "STMN2"), ]
 ```
