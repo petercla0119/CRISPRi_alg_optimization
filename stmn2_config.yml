@@ -1,0 +1,8 @@
+data:
+  raw_count_data: "/Users/claireps/CRISPRi_alg_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/count/all.count.txt"
+  norm_count_data: "/Users/claireps/CRISPRi_alg_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/count/all.count_normalized.txt"
+  sgrna_summary: "/Users/claireps/CRISPRi_alg_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/test/High_vs_Low.sgrna_summary.txt"
+  gene_summary: "/Users/claireps/CRISPRi_alg_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/test/High_vs_Low.gene_summary.txt"
+
+
+figures:

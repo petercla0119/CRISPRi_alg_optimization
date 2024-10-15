@@ -1,12 +1,12 @@
 ---
 title: "Dual-guide CRISPR Optimization"
 output:
-  html_document:
-    df_print: paged
   html_notebook:
     fig_width: 8
     fig_height: 6.5
     fig_caption: true
+  html_document:
+    df_print: paged
 ---
 # Setup
 ```{r setup, include=FALSE}
@@ -22,13 +22,13 @@ library(gridExtra)
 # Test best normalization method
 
 # Import various screen data results ####
-# Import STMN2 screen data
-# 
-sgrna_stmn2 <- read.delim("/Users/Claire/Library/CloudStorage/Box-Box/MSTP Research Rotations/Summer_2024_Might_Ward_Lab/CRISPRi_screenfiles/CRISPRi_alg_optimization/data_processed/rra-High-Low-STMN2.sgrna_summary.txt", sep = "\t", header = TRUE)
-gene_stmn2 <- read.table("/Users/Claire/Library/CloudStorage/Box-Box/MSTP Research Rotations/Summer_2024_Might_Ward_Lab/CRISPRi_screenfiles/CRISPRi_alg_optimization/data_processed/rra-High-Low-STMN2.gene_summary.txt", sep = "\t", header = TRUE)
+# Import STMN2 sgRNA screen data
+sgrna_stmn2 <- read.delim("~/Desktop/Projects/dual_guide_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/test/High_vs_Low.sgrna_summary.txt", sep = "\t", header = TRUE)
+# Import STMN2 gene data
+gene_stmn2 <- read.table("~/Desktop/Projects/dual_guide_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/test/High_vs_Low.gene_summary.txt", sep = "\t", header = TRUE)
 
 # Raw counts data
-raw_counts <- read.delim("/Users/Claire/Library/CloudStorage/Box-Box/MSTP Research Rotations/Summer_2024_Might_Ward_Lab/files_from_others/counts/all.count.txt", sep = "\t", header = TRUE)
+raw_counts <- read.delim("~/Desktop/Projects/dual_guide_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/count/all.count.txt", sep = "\t", header = TRUE)
 
 # Import TDP-43 screen data
 sgrna_tdp <- read.table("/Users/Claire/Library/CloudStorage/Box-Box/MSTP Research Rotations/Summer_2024_Might_Ward_Lab/CRISPRi_screenfiles/CRISPRi_alg_optimization/data_processed/tdp_i3N.sgrna_summary.txt", sep = "\t", header = TRUE)
@@ -331,148 +331,6 @@ normalizeCounts <- function(ctable, sgdict = NULL, method = 'median', returnfact
   ntable <- lapply(ctable, function(v) samplefactor * v)
   return(ntable)
 }
-
-
-```
-
-## Try creating new bayesian inference framework
-```{r bayes, echo=FALSE, include=FALSE}
-# Low will be control grp
-C_counts <- raw_counts %>% 
-  dplyr::select(Low_1, Low_2, Low_3)
-
-# High will be treatment grp
-T_counts <- raw_counts %>% 
-  dplyr::select(High_1, High_2, High_3)
-
-calculate_lfc <- function(T_counts, C_counts, df) {
-  # T_counts and C_counts should be matrices where each row corresponds to a guide 
-  # and each column corresponds to a replicate. Rows correspond to different guides.
-  # Columns correspond to replicates (RT for treatment, RC for control).
-  
-  # Calculate Tg,i,l,r and Cg,i,r for each guide and replicate. Drop first two columns as they contain gene and sgRNA info
-  T_log <- log2(T_counts + 32)
-  C_log <- log2(C_counts + 32)
-  
-  # Median normalization across guides for each replicate
-  T_median <- apply(T_log, 2, median)
-  C_median <- apply(C_log, 2, median)
-  
-  # Subtract the median for each replicate
-  T_median_normalized <- sweep(T_log, 2, T_median, "-")
-  C_median_normalized <- sweep(C_log, 2, C_median, "-")
-  
-  # Calculate the average across replicates for both treatment and control
-  T_mean <- rowMeans(T_median_normalized)
-  C_mean <- rowMeans(C_median_normalized)
-  
-  # Calculate the observed log2 fold change
-  y <- T_mean - C_mean
-
-  # Add the calculated vectors to the dataframe as new columns
-  df$T_log <- T_log
-  df$C_log <- C_log
-  df$T_median <- T_median  # Average of the medians across treatment replicates
-  df$C_median <- C_median  # Average of the medians across control replicates
-  df$T_median_normalized <- T_median_normalized
-  df$C_median_normalized <- C_median_normalized
-  df$T_mean <- T_mean
-  df$C_mean <- C_mean
-  # df$T_mean_normalized <- rowMeans(T_median_normalized)   # Treatment mean of median normalized
-  # df$C_mean_normalized <- rowMeans(C_median_normalized)   # Control mean of median normalized
-  df$LFC <- y                        # Log2 fold change
-  
-  return(df)
-}
-
-# Function to calculate priors for the Gaussian distribution
-calculate_priors <- function(y_gil, N_g, k = 0.5) {
-  # Initialize prior parameters
-  mu_w <- 0
-  sigma_w2 <- 1000
-  mu_x <- 0
-  sigma_x2 <- 1
-  
-  # Calculate the smoothed variance estimates
-  T_var <- apply(T_counts, 1, var)
-  C_var <- apply(C_counts, 1, var)
-  
-  # Prior precision based on the sum of treatment and control variances
-  tau_gil <- (T_var + C_var)
-  
-  # Assign priors
-  ag <- k * T_var
-  bg <- k * (T_var + C_var)
-  
-  return(list(mu_w = mu_w, sigma_w2 = sigma_w2, mu_x = mu_x, sigma_x2 = sigma_x2, tau_gil = tau_gil, ag = ag, bg = bg))
-}
-
-
-install.packages("MASS")
-install.packages("scipy")
-install.packages("gaussianKde")
-
-set.seed(42)  # For reproducibility
-
-select_random_gene <- function(gene_library) {
-  return(sample(names(gene_library), 1))
-}
-
-select_gRNAs <- function(gene_library, gene, N) {
-  return(sample(gene_library[[gene]], N, replace = TRUE))
-}
-select_negative_controls <- function(negative_control_set, N) {
-  return(sample(negative_control_set, N, replace = TRUE))
-}
-generate_negative_pseudogenes <- function(gene_library, negative_control_set, N, num_pseudogenes = 2000) {
-  negative_pseudogenes <- vector("list", num_pseudogenes)
-  
-  for (i in 1:num_pseudogenes) {
-    random_gene <- select_random_gene(gene_library)
-    selected_gRNAs <- select_gRNAs(gene_library, random_gene, N)
-    negative_pseudogenes[[i]] <- select_negative_controls(negative_control_set, N)
-  }
-  
-  return(negative_pseudogenes)
-}
-
-
-# Function to generate negative pseudogenes by resampling
-generate_pseudogenes <- function(gRNA_count, replicates, n_pseudogenes = 2000) {
-  pseudo_results <- matrix(0, nrow = n_pseudogenes, ncol = replicates)
-  
-  for (i in 1:n_pseudogenes) {
-    pseudo_results[i, ] <- sample(rnorm(gRNA_count, mean = 0, sd = 1), replicates)
-  }
-  
-  return(pseudo_results)
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Calculate LFC
-y <- calculate_lfc(T_counts, C_counts, raw_counts)
-
-
-priors <- calculate_priors(y, N_g = 10)
-print(priors)
-
-# Example resampling
-pseudo_data <- generate_pseudogenes(gRNA_count = 10, replicates = 5)
-print(pseudo_data)
-
 
 
 ```

@@ -128,22 +128,23 @@ genes_keep <- data.frame(Gene = rownames(keep[which(keep == TRUE), , drop = FALS
 # Verify that TDP and STMN2 are retained
 genes_keep[genes_keep$Gene %in% c("TARBP1", "STMN2"), ]
 ```
+###### 1.2. Normalization
 
 ```{r Exp 1.2.5. Normalization}
 # Plot library sizes before normalization
-barplot(dge$samples$lib.size, main = "Library Sizes Before Normalization", ylab = "Library Size")
+barplot(exp1_dge$samples$lib.size, main = "Library Sizes Before Normalization", ylab = "Library Size")
 
 ## Carry out normalization using TMM
-dge <- calcNormFactors(dge, method = "TMM")
+exp1_dge <- calcNormFactors(exp1_dge, method = "TMM")
 
 # View normalization factors
-dge$samples
+exp1_dge$samples
 
 # Get normalized counts per million (CPM)
-normalized_counts <- cpm(dge)
+normalized_counts <- cpm(exp1_dge)
 
 # Apply normalization and plot normalization factors
-barplot(dge$samples$lib.size * dge$samples$norm.factors, main = "Library Sizes After Normalization", ylab = "Effective Library Size")
+barplot(exp1_dge$samples$lib.size * exp1_dge$samples$norm.factors, main = "Library Sizes After Normalization", ylab = "Effective Library Size")
 
 # base::summary(dge$samples)
 ```

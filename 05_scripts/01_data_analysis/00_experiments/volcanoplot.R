@@ -1,9 +1,8 @@
 library(tidyverse)
 library(ggplot2)
+library(dplyr)
 
-STMN2 <- read.delim("~/Desktop/Projects/FACS_projects/STMN2/
-                    STMN2_mscarlet_221205/input/
-                    rra-High-Low-STMN2.gene_summary.txt")
+STMN2 <- read.delim("~/Desktop/Projects/dual_guide_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/test/High_vs_Low.gene_summary.txt")
 
 negative<- STMN2 %>% filter(neg.lfc<0) %>% 
   select(id,lfc=neg.lfc, score = neg.score,pvalue =neg.p.value,fdr = neg.fdr)
@@ -13,16 +12,16 @@ positive<- STMN2 %>% filter(pos.lfc>0) %>%
 
 both<-rbind(negative, positive) %>% 
   mutate(
-    qvalue = -log10(pvalue)
+    qvalue = round(-log10(pvalue), digits = 10)
   )
 
 both %>%
   ggplot(aes(lfc, qvalue, label=id))+
-  geom_point()+
+  geom_point()
   geom_point(data=both %>% filter(id=="STMN2"|id=="TARDBP"), color="red",size=2)+
   #geom_label_repel(data=both %>% filter(id=="STMN2"|id=="TARDBP"))+
   geom_point(data=both %>% filter(id %in% list), color="blue",size=2)+
-  geom_label_repel(data=both %>% filter(id %in% list))+
+  # geom_label_repel(data=both %>% filter(id %in% list))+
   theme_classic()
 
 both %>%

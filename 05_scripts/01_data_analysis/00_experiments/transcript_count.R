@@ -2,10 +2,14 @@ library(tidyverse)
 library(ggrepel)
 library(svglite)
 library(plotly)
+source("05_scripts/01_data_analysis/00_experiments/clean_preprocess_module.R")
 
-rra.High.Low.STMN2.sgrna_summary <- read.delim("/Users/claireps/Desktop/dual_guide_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/test/High_vs_Low.sgrna_summary.txt")
+# Import sgRNA summary file from MAGeCK output
+rra.High.Low.STMN2.sgrna_summary <- read.delim("~/Desktop/Projects/dual_guide_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/test/High_vs_Low.sgrna_summary.txt")
 
-
+rra.High.Low.STMN2.sgrna_summary <- separate_sgrna_summary(rra.High.Low.STMN2.sgrna_summary)
+# Convert columns to numeric
+rra.High.Low.STMN2.sgrna_summary[, 3:ncol(rra.High.Low.STMN2.sgrna_summary)] <- lapply(rra.High.Low.STMN2.sgrna_summary[, 3:ncol(rra.High.Low.STMN2.sgrna_summary)], as.numeric)
 
 ##transcript plot - need to add noise modeling too
 rra.High.Low.STMN2.sgrna_summary %>% 
@@ -40,9 +44,7 @@ rra.High.Low.STMN2.sgrna_summary %>%
   #           color="green",
   #           alpha=0.7)+
   geom_label_repel(data = rra.High.Low.STMN2.sgrna_summary %>%
-                     dplyr::filter((control_mean>=3000|
-                               treat_mean>=3000),
-                              abs(LFC) >4)
+                     dplyr::filter((control_mean>=3000 | treat_mean>=3000), abs(LFC)>4)
                               ,
                    box.padding = 0.5,
                    segment.color="black",

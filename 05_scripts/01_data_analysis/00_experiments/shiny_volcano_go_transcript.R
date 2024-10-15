@@ -8,15 +8,14 @@ library(shinyWidgets)
 library(scales)
 library(GO.db)
 library(org.Hs.eg.db)
-library(GOSim)
+# library(GOSim)
 library(biomaRt)
 
 ##
 # BiocManager::install("org.Hs.eg.db")
 
-## load gene summary and guide summary
-STMN2 <- read.delim("/Users/claireps/Desktop/dual_guide_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/test/High_vs_Low.gene_summary.txt")
-rra.High.Low.STMN2.sgrna_summary <- read.delim("/Users/claireps/Desktop/dual_guide_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/test/High_vs_Low.sgrna_summary.txt")
+STMN2 <- read.delim("/Users/claireps/Desktop/Projects/dual_guide_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/test/High_vs_Low.gene_summary.txt")
+rra.High.Low.STMN2.sgrna_summary <- read.delim("/Users/claireps/Desktop/Projects/dual_guide_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/test/High_vs_Low.sgrna_summary.txt")
 ## you just need to change these paths for the gene_summary and sgrna_summary files
 
 both %>% 

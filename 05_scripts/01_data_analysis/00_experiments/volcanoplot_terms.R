@@ -1,9 +1,8 @@
 library(tidyverse)
 library(ggplot2)
 
-STMN2 <- read.delim("~/Desktop/Projects/FACS_projects/STMN2/
-                    STMN2_mscarlet_221205/input/
-                    rra-High-Low-STMN2.gene_summary.txt")
+# Have not been able to run as of 9/18/24
+STMN2 <- read.delim("~/Desktop/Projects/dual_guide_optimization/01_sorting-based_screens/stmn2/analysis_method/mageck/initial_mageck_09122024/stmn2_unpaired/results/test/High_vs_Low.gene_summary.txt")
 
 negative<- STMN2 %>% filter(neg.lfc<0) %>% 
   select(id,lfc=neg.lfc, score = neg.score,pvalue =neg.p.value,fdr = neg.fdr)
@@ -16,8 +15,8 @@ both<-rbind(negative, positive) %>%
     qvalue = -log10(pvalue)
   )
   
-test <-hgtRes1_up@result
-hgt_combined <- rbind(hgtRes1@result, hgtRes1_up@result)
+# test <-hgtRes1_up@result
+# hgt_combined <- rbind(hgtRes1@result, hgtRes1_up@result)
 library(ggplot2)
 library(tidyverse)
 library(dplyr)
